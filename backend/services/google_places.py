@@ -6,6 +6,7 @@ for flexible import paths across agents.
 """
 
 from app.services.google_places import (
+    search_places,
     geocode_destination,
     search_tourist_attractions,
     search_hotels,
@@ -14,10 +15,10 @@ from app.services.google_places import (
 )
 
 __all__ = [
+    "search_places",
     "geocode_destination",
     "search_tourist_attractions",
     "search_hotels",
     "get_place_details",
     "GooglePlacesService"
 ]
-

@@ -9,25 +9,33 @@ class DestinationRequest(BaseModel):
     @classmethod
     def validate_destination(cls, v: str) -> str:
         if not v or not isinstance(v, str) or not v.strip():
-            raise ValueError("Destination must be a non-empty string.")
+            raise ValueError("Destination name cannot be empty.")
         return v.strip()
 
 class AttractionItem(BaseModel):
     name: str
     address: str
     rating: float
+    userRatingCount: Optional[int] = 0
     user_ratings_total: Optional[int] = 0
     latitude: Optional[float] = None
     longitude: Optional[float] = None
     place_id: Optional[str] = ""
     photo_reference: Optional[str] = ""
-    types: List[str] = []
+    photo_url: Optional[str] = ""
+    category: Optional[str] = "Tourist Attraction"
+    types: Optional[List[str]] = []
+    googleMapsUri: Optional[str] = ""
+    google_maps_url: Optional[str] = ""
 
 class DestinationResponse(BaseModel):
-    status: str
+    success: Optional[bool] = True
+    status: Optional[str] = "success"
     destination: str
     country: Optional[str] = "India"
-    total_attractions: int
-    attractions: List[AttractionItem]
+    total_attractions: Optional[int] = 0
+    count: Optional[int] = 0
+    places: Optional[List[AttractionItem]] = []
+    attractions: Optional[List[AttractionItem]] = []
     itinerary: Optional[List[Dict[str, Any]]] = []
     message: Optional[str] = None

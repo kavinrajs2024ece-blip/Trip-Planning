@@ -757,237 +757,160 @@
         </section>
 
 
-        <!-- 2. TRIP OVERVIEW PAGE -->
+        <!-- 2. TRIP OVERVIEW PAGE (CONSUMER TRAVEL SUMMARY) -->
         <section class="app-view" id="view-controller">
-          <div class="view-header">
-            <div>
-              <h1 class="view-title">Trip Overview</h1>
-              <p class="view-subtitle">Review your trip details before viewing AI-generated results.</p>
+          <!-- SECTION 1: HERO BANNER -->
+          <div class="trip-hero-banner mb-4" id="overviewHeroBanner">
+            <div class="hero-bg-overlay"></div>
+            <div class="hero-content-wrapper">
+              <div class="hero-top-badges mb-2">
+                <span class="badge-sub badge-success" id="ovHeroStatusBadge"><i class="fa-solid fa-circle-check"></i> Trip Ready</span>
+                <span class="badge-sub font-mono" id="ovHeroWeatherBadge"><i class="fa-solid fa-cloud-sun"></i> Pleasant • 24°C</span>
+              </div>
+              <div class="hero-main-title mb-3">
+                <h1 class="hero-dest-name" id="ovHeroDestName">Kerala, India</h1>
+                <p class="hero-subtitle" id="ovHeroDates">3 Days • 2 Travelers (Luxury Style)</p>
+              </div>
+              <div class="hero-meta-row">
+                <div class="hero-meta-item">
+                  <span class="hero-meta-label">Total Allocated Budget</span>
+                  <span class="hero-meta-val text-emerald" id="ovHeroBudget">₹ 50,000 INR</span>
+                </div>
+                <div class="hero-meta-item">
+                  <span class="hero-meta-label">Selected Interests</span>
+                  <div class="hero-interests-list" id="ovHeroInterests">
+                    <!-- Badges populated dynamically -->
+                  </div>
+                </div>
+              </div>
             </div>
-            <button class="btn btn-primary-gradient nav-trigger" data-target="new-plan">
-              <i class="fa-solid fa-plus"></i> Create New Trip
-            </button>
           </div>
 
-          <!-- SECTION 1: TRIP SUMMARY CARD (TWO COLUMN LAYOUT) -->
-          <div class="glass-card section-card mb-4">
-            <div class="card-header-bar">
-              <h3 class="card-title"><i class="fa-solid fa-clipboard-list gradient-text"></i> Trip Summary</h3>
-              <span class="badge-sub" id="overviewStatusBadge">Awaiting Plan</span>
-            </div>
-
-            <div class="overview-summary-grid mt-3" id="overviewTripSummaryContainer">
-              <!-- Dynamically populated in 2-column layout -->
-            </div>
-          </div>
-
-          <!-- SECTION 2: AI AGENT STATUS (6 MODERN CARDS) -->
+          <!-- SECTION 2: QUICK TRIP SUMMARY (8 GLASSMORPHISM CARDS) -->
           <div class="mb-4">
             <div class="section-title-bar mb-3">
-              <h3 class="card-title"><i class="fa-solid fa-microchip gradient-text"></i> AI Agent Status</h3>
-              <p class="card-desc" style="font-size: 13px; color: var(--text-secondary);">Real-time status and output readiness for all six specialized AI agents.</p>
+              <h3 class="card-title"><i class="fa-solid fa-compass gradient-text"></i> Quick Trip Summary</h3>
+            </div>
+            <div class="summary-8grid" id="overviewQuickSummaryGrid">
+              <!-- 8 Glass Cards populated dynamically -->
+            </div>
+          </div>
+
+          <!-- SECTION 3: DESTINATION HIGHLIGHTS (HORIZONTAL CAROUSEL) -->
+          <div class="mb-4">
+            <div class="section-title-bar mb-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+              <div>
+                <h3 class="card-title"><i class="fa-solid fa-mountain-city gradient-text"></i> Destination Highlights</h3>
+                <p class="card-desc" style="font-size: 13px; color: var(--text-secondary);">Top-rated tourist attractions verified via Google Places API</p>
+              </div>
+              <button class="btn btn-sm btn-glass nav-trigger" data-target="agent-destination">Explore All Attractions <i class="fa-solid fa-arrow-right"></i></button>
+            </div>
+            <div class="attractions-carousel" id="overviewAttractionsCarousel">
+              <!-- Horizontal scroll cards populated dynamically -->
+            </div>
+          </div>
+
+          <!-- SECTION 4: DAY WISE ITINERARY -->
+          <div class="mb-4">
+            <div class="section-title-bar mb-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+              <div>
+                <h3 class="card-title"><i class="fa-solid fa-calendar-days gradient-text"></i> Day Wise Itinerary</h3>
+                <p class="card-desc" style="font-size: 13px; color: var(--text-secondary);">Day-by-day morning, afternoon, and evening schedule</p>
+              </div>
+              <button class="btn btn-sm btn-glass nav-trigger" data-target="agent-itinerary">Full Schedule <i class="fa-solid fa-arrow-right"></i></button>
+            </div>
+            <div class="day-itinerary-list" id="overviewDayItineraryContainer">
+              <!-- Timeline cards populated dynamically -->
+            </div>
+          </div>
+
+          <!-- SECTION 5 & SECTION 6 SPLIT -->
+          <div class="row g-4 mb-4">
+            <!-- SECTION 5: BUDGET BREAKDOWN -->
+            <div class="col-lg-6">
+              <div class="glass-card section-card h-100">
+                <div class="card-header-bar mb-3 d-flex justify-content-between align-items-center">
+                  <h3 class="card-title"><i class="fa-solid fa-chart-pie gradient-text"></i> Budget Breakdown</h3>
+                  <span class="badge-sub font-mono" id="ovBudgetTotalTag">₹ 50,000 INR</span>
+                </div>
+                <div class="budget-breakdown-body" id="overviewBudgetBreakdownContainer">
+                  <!-- Breakdown bars populated dynamically -->
+                </div>
+              </div>
             </div>
 
-            <div class="overview-agents-grid" id="overviewAgentsGrid">
-              <!-- 1. Destination Agent -->
-              <div class="glass-card overview-agent-card" id="ov-card-dest">
-                <div class="ov-agent-header">
-                  <div class="ov-agent-left">
-                    <span class="ov-agent-icon agent-color-dest"><i class="fa-solid fa-compass"></i></span>
-                    <div>
-                      <h4 class="ov-agent-name">Destination Agent</h4>
-                      <span class="ov-agent-sub">Attraction &amp; Spot Analysis</span>
-                    </div>
-                  </div>
-                  <span class="state-pill state-waiting" id="ov-status-dest"><i class="fa-regular fa-clock"></i> Waiting</span>
+            <!-- SECTION 6: ACCOMMODATION STAYS -->
+            <div class="col-lg-6">
+              <div class="glass-card section-card h-100">
+                <div class="card-header-bar mb-3 d-flex justify-content-between align-items-center">
+                  <h3 class="card-title"><i class="fa-solid fa-hotel gradient-text"></i> Recommended Accommodation</h3>
+                  <button class="btn btn-sm btn-glass nav-trigger" data-target="agent-accommodation">All Hotels <i class="fa-solid fa-arrow-right"></i></button>
                 </div>
-                <div class="ov-agent-body mt-3">
-                  <div class="ov-progress-track">
-                    <div class="ov-progress-fill" id="ov-prog-dest" style="width: 0%;"></div>
-                  </div>
-                  <div class="ov-agent-meta mt-2">
-                    <span class="meta-label">Response Time: <strong id="ov-time-dest">--</strong></span>
-                    <button class="btn btn-sm btn-glass ov-details-btn" onclick="switchView('agent-destination')">
-                      View Details <i class="fa-solid fa-chevron-right"></i>
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              <!-- 2. Budget Agent -->
-              <div class="glass-card overview-agent-card" id="ov-card-budget">
-                <div class="ov-agent-header">
-                  <div class="ov-agent-left">
-                    <span class="ov-agent-icon agent-color-budget"><i class="fa-solid fa-wallet"></i></span>
-                    <div>
-                      <h4 class="ov-agent-name">Budget Agent</h4>
-                      <span class="ov-agent-sub">Cost Estimation (₹ INR)</span>
-                    </div>
-                  </div>
-                  <span class="state-pill state-waiting" id="ov-status-budget"><i class="fa-regular fa-clock"></i> Waiting</span>
-                </div>
-                <div class="ov-agent-body mt-3">
-                  <div class="ov-progress-track">
-                    <div class="ov-progress-fill" id="ov-prog-budget" style="width: 0%;"></div>
-                  </div>
-                  <div class="ov-agent-meta mt-2">
-                    <span class="meta-label">Response Time: <strong id="ov-time-budget">--</strong></span>
-                    <button class="btn btn-sm btn-glass ov-details-btn" onclick="switchView('agent-budget')">
-                      View Details <i class="fa-solid fa-chevron-right"></i>
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              <!-- 3. Weather Agent -->
-              <div class="glass-card overview-agent-card" id="ov-card-weather">
-                <div class="ov-agent-header">
-                  <div class="ov-agent-left">
-                    <span class="ov-agent-icon agent-color-weather"><i class="fa-solid fa-cloud-sun"></i></span>
-                    <div>
-                      <h4 class="ov-agent-name">Weather Agent</h4>
-                      <span class="ov-agent-sub">Climate &amp; Forecast advisory</span>
-                    </div>
-                  </div>
-                  <span class="state-pill state-waiting" id="ov-status-weather"><i class="fa-regular fa-clock"></i> Waiting</span>
-                </div>
-                <div class="ov-agent-body mt-3">
-                  <div class="ov-progress-track">
-                    <div class="ov-progress-fill" id="ov-prog-weather" style="width: 0%;"></div>
-                  </div>
-                  <div class="ov-agent-meta mt-2">
-                    <span class="meta-label">Response Time: <strong id="ov-time-weather">--</strong></span>
-                    <button class="btn btn-sm btn-glass ov-details-btn" onclick="switchView('agent-weather')">
-                      View Details <i class="fa-solid fa-chevron-right"></i>
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              <!-- 4. Transport Agent -->
-              <div class="glass-card overview-agent-card" id="ov-card-transport">
-                <div class="ov-agent-header">
-                  <div class="ov-agent-left">
-                    <span class="ov-agent-icon agent-color-transport"><i class="fa-solid fa-plane-departure"></i></span>
-                    <div>
-                      <h4 class="ov-agent-name">Transport Agent</h4>
-                      <span class="ov-agent-sub">Transit Options &amp; Flights</span>
-                    </div>
-                  </div>
-                  <span class="state-pill state-waiting" id="ov-status-transport"><i class="fa-regular fa-clock"></i> Waiting</span>
-                </div>
-                <div class="ov-agent-body mt-3">
-                  <div class="ov-progress-track">
-                    <div class="ov-progress-fill" id="ov-prog-transport" style="width: 0%;"></div>
-                  </div>
-                  <div class="ov-agent-meta mt-2">
-                    <span class="meta-label">Response Time: <strong id="ov-time-transport">--</strong></span>
-                    <button class="btn btn-sm btn-glass ov-details-btn" onclick="switchView('agent-transport')">
-                      View Details <i class="fa-solid fa-chevron-right"></i>
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              <!-- 5. Accommodation Agent -->
-              <div class="glass-card overview-agent-card" id="ov-card-hotel">
-                <div class="ov-agent-header">
-                  <div class="ov-agent-left">
-                    <span class="ov-agent-icon agent-color-hotel"><i class="fa-solid fa-hotel"></i></span>
-                    <div>
-                      <h4 class="ov-agent-name">Accommodation Agent</h4>
-                      <span class="ov-agent-sub">Hotel &amp; Resort Stays</span>
-                    </div>
-                  </div>
-                  <span class="state-pill state-waiting" id="ov-status-hotel"><i class="fa-regular fa-clock"></i> Waiting</span>
-                </div>
-                <div class="ov-agent-body mt-3">
-                  <div class="ov-progress-track">
-                    <div class="ov-progress-fill" id="ov-prog-hotel" style="width: 0%;"></div>
-                  </div>
-                  <div class="ov-agent-meta mt-2">
-                    <span class="meta-label">Response Time: <strong id="ov-time-hotel">--</strong></span>
-                    <button class="btn btn-sm btn-glass ov-details-btn" onclick="switchView('agent-accommodation')">
-                      View Details <i class="fa-solid fa-chevron-right"></i>
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              <!-- 6. Itinerary Agent -->
-              <div class="glass-card overview-agent-card" id="ov-card-itin">
-                <div class="ov-agent-header">
-                  <div class="ov-agent-left">
-                    <span class="ov-agent-icon agent-color-itin"><i class="fa-solid fa-calendar-days"></i></span>
-                    <div>
-                      <h4 class="ov-agent-name">Itinerary Agent</h4>
-                      <span class="ov-agent-sub">Day-Wise Plan Schedule</span>
-                    </div>
-                  </div>
-                  <span class="state-pill state-waiting" id="ov-status-itin"><i class="fa-regular fa-clock"></i> Waiting</span>
-                </div>
-                <div class="ov-agent-body mt-3">
-                  <div class="ov-progress-track">
-                    <div class="ov-progress-fill" id="ov-prog-itin" style="width: 0%;"></div>
-                  </div>
-                  <div class="ov-agent-meta mt-2">
-                    <span class="meta-label">Response Time: <strong id="ov-time-itin">--</strong></span>
-                    <button class="btn btn-sm btn-glass ov-details-btn" onclick="switchView('agent-itinerary')">
-                      View Details <i class="fa-solid fa-chevron-right"></i>
-                    </button>
-                  </div>
+                <div class="accommodation-list-mini" id="overviewAccommodationContainer">
+                  <!-- Hotel cards populated dynamically -->
                 </div>
               </div>
             </div>
           </div>
 
-          <!-- SECTION 3 & SECTION 4 SPLIT CONTAINER -->
-          <div class="overview-split-grid mb-4">
-            
-            <!-- SECTION 3: PLANNING PROGRESS -->
-            <div class="glass-card section-card">
-              <div class="card-header-bar">
-                <h3 class="card-title"><i class="fa-solid fa-chart-line gradient-text"></i> Planning Progress</h3>
-                <span class="badge-sub font-mono" id="ovOverallPctTag">0%</span>
-              </div>
-              <div class="overview-progress-body mt-3">
-                <div class="ov-main-progress-track">
-                  <div class="ov-main-progress-fill" id="ovMainProgressBar" style="width: 0%;"></div>
+          <!-- SECTION 7 & SECTION 8 SPLIT -->
+          <div class="row g-4 mb-4">
+            <!-- SECTION 7: TRANSPORT OPTIONS -->
+            <div class="col-lg-6">
+              <div class="glass-card section-card h-100">
+                <div class="card-header-bar mb-3 d-flex justify-content-between align-items-center">
+                  <h3 class="card-title"><i class="fa-solid fa-plane-departure gradient-text"></i> Transport &amp; Transit</h3>
+                  <button class="btn btn-sm btn-glass nav-trigger" data-target="agent-transport">Details <i class="fa-solid fa-arrow-right"></i></button>
                 </div>
-
-                <div class="overview-metrics-row mt-4">
-                  <div class="ov-metric-pill">
-                    <span class="ov-metric-label">Completed Agents</span>
-                    <h4 class="ov-metric-value" id="ovCompletedCount">0 / 6</h4>
-                  </div>
-                  <div class="ov-metric-pill">
-                    <span class="ov-metric-label">Current Agent</span>
-                    <h4 class="ov-metric-value text-cyan" id="ovCurrentAgentName">None</h4>
-                  </div>
-                  <div class="ov-metric-pill">
-                    <span class="ov-metric-label">Est. Time Remaining</span>
-                    <h4 class="ov-metric-value" id="ovTimeRemaining">0s</h4>
-                  </div>
+                <div class="transport-list-mini" id="overviewTransportContainer">
+                  <!-- Transit cards populated dynamically -->
                 </div>
               </div>
             </div>
 
-            <!-- SECTION 4: LIVE ACTIVITY TIMELINE -->
-            <div class="glass-card section-card">
-              <div class="card-header-bar">
-                <h3 class="card-title"><i class="fa-solid fa-timeline gradient-text"></i> Live Activity Timeline</h3>
-              </div>
-              <div class="overview-timeline-list mt-3" id="overviewTimelineContainer">
-                <!-- Dynamically populated timeline items -->
+            <!-- SECTION 8: WEATHER FORECAST -->
+            <div class="col-lg-6">
+              <div class="glass-card section-card h-100">
+                <div class="card-header-bar mb-3 d-flex justify-content-between align-items-center">
+                  <h3 class="card-title"><i class="fa-solid fa-cloud-sun-rain gradient-text"></i> Weather Forecast &amp; Advisory</h3>
+                  <button class="btn btn-sm btn-glass nav-trigger" data-target="agent-weather">Weather Hub <i class="fa-solid fa-arrow-right"></i></button>
+                </div>
+                <div class="weather-forecast-body" id="overviewWeatherForecastContainer">
+                  <!-- Forecast cards populated dynamically -->
+                </div>
               </div>
             </div>
-
           </div>
 
-          <!-- BOTTOM ACTION BAR -->
-          <div class="overview-bottom-action-bar">
-            <button class="btn btn-primary-gradient btn-lg w-100 glow-btn" id="btnViewGeneratedPlan" disabled>
-              <i class="fa-solid fa-map-location-dot"></i> View Generated Travel Plan
+          <!-- SECTION 9: LOCAL RECOMMENDATIONS & TIPS -->
+          <div class="glass-card section-card mb-4">
+            <div class="card-header-bar mb-3">
+              <h3 class="card-title"><i class="fa-solid fa-utensils gradient-text"></i> Local Recommendations &amp; Travel Tips</h3>
+            </div>
+            <div class="local-recs-grid" id="overviewLocalRecsContainer">
+              <!-- Cards for Dining, Shopping, Safety populated dynamically -->
+            </div>
+          </div>
+
+          <!-- SECTION 10: ACTION BUTTONS BAR -->
+          <div class="overview-trip-action-bar">
+            <button class="btn btn-glass" onclick="window.print()">
+              <i class="fa-solid fa-file-pdf text-rose"></i> Export PDF
+            </button>
+            <button class="btn btn-glass" onclick="downloadTripJSON()">
+              <i class="fa-solid fa-download text-cyan"></i> Download Itinerary
+            </button>
+            <button class="btn btn-glass" onclick="shareTripPlan()">
+              <i class="fa-solid fa-share-nodes text-purple"></i> Share Trip
+            </button>
+            <a class="btn btn-glass text-decoration-none" id="ovOpenMapsBtn" href="https://maps.google.com" target="_blank">
+              <i class="fa-solid fa-map-location-dot text-emerald"></i> Open in Maps
+            </a>
+            <button class="btn btn-glass nav-trigger" data-target="new-plan">
+              <i class="fa-solid fa-pen-to-square text-amber"></i> Edit Trip
+            </button>
+            <button class="btn btn-primary-gradient nav-trigger" data-target="new-plan">
+              <i class="fa-solid fa-plus"></i> Create Another Trip
             </button>
           </div>
 
