@@ -1,0 +1,1251 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Travel Planning using Agentic AI | Enterprise Multi-Agent SaaS</title>
+  <meta name="description" content="AI-Powered Multi-Agent Travel Planner coordinating Destination, Budget, Itinerary, Weather, Transport, and Accommodation AI agents.">
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  
+  <!-- Leaflet CSS for Satellite Maps -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+  
+  <!-- Custom Styles -->
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <!-- App Wrapper -->
+  <div class="app-layout">
+    
+    <!-- SIDEBAR MENU -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <div class="logo-box">
+          <div class="logo-icon"><i class="fa-solid fa-brain-circuit"></i></div>
+          <div class="logo-text">
+            <span class="brand-title">TECH SQUAD <span class="badge-ai">AI</span></span>
+            <span class="brand-subtitle">Multi-Agent Planner</span>
+          </div>
+        </div>
+        <button class="btn-icon sidebar-toggle" id="sidebarToggleBtn" title="Toggle Sidebar">
+          <i class="fa-solid fa-angles-left"></i>
+        </button>
+      </div>
+
+      <div class="sidebar-status-banner">
+        <div class="status-indicator online"></div>
+        <div class="status-info">
+          <span class="status-title">Orchestrator Online</span>
+          <span class="status-sub">6/6 Agents Ready</span>
+        </div>
+      </div>
+
+      <nav class="sidebar-nav">
+        <div class="nav-section">
+          <span class="nav-section-title">MAIN NAVIGATION</span>
+          <a href="#" class="nav-item active" data-view="dashboard">
+            <i class="fa-solid fa-chart-pie nav-icon"></i>
+            <span class="nav-label">Dashboard</span>
+          </a>
+          <a href="#" class="nav-item" data-view="new-plan">
+            <i class="fa-solid fa-square-plus nav-icon text-cyan"></i>
+            <span class="nav-label">New Trip Plan</span>
+            <span class="badge-live" style="background: rgba(0,242,254,0.15); color: var(--color-primary); border-color: rgba(0,242,254,0.3);">CREATE</span>
+          </a>
+          <a href="#" class="nav-item" data-view="processing">
+            <i class="fa-solid fa-microchip nav-icon text-cyan"></i>
+            <span class="nav-label">AI Processing</span>
+          </a>
+          <a href="#" class="nav-item" data-view="controller">
+            <i class="fa-solid fa-diagram-project nav-icon"></i>
+            <span class="nav-label">Trip Overview</span>
+            <span class="badge-live">LIVE</span>
+          </a>
+        </div>
+
+        <div class="nav-section">
+          <span class="nav-section-title">SPECIALIZED AGENTS</span>
+          <a href="#" class="nav-item" data-view="agent-destination">
+            <i class="fa-solid fa-compass nav-icon agent-color-dest"></i>
+            <span class="nav-label">Destination Agent</span>
+          </a>
+          <a href="#" class="nav-item" data-view="agent-budget">
+            <i class="fa-solid fa-wallet nav-icon agent-color-budget"></i>
+            <span class="nav-label">Budget Agent</span>
+          </a>
+          <a href="#" class="nav-item" data-view="agent-itinerary">
+            <i class="fa-solid fa-calendar-days nav-icon agent-color-itin"></i>
+            <span class="nav-label">Itinerary Agent</span>
+          </a>
+          <a href="#" class="nav-item" data-view="agent-weather">
+            <i class="fa-solid fa-cloud-sun nav-icon agent-color-weather"></i>
+            <span class="nav-label">Weather Agent</span>
+          </a>
+          <a href="#" class="nav-item" data-view="agent-transport">
+            <i class="fa-solid fa-plane-departure nav-icon agent-color-transport"></i>
+            <span class="nav-label">Transport Agent</span>
+          </a>
+          <a href="#" class="nav-item" data-view="agent-accommodation">
+            <i class="fa-solid fa-hotel nav-icon agent-color-hotel"></i>
+            <span class="nav-label">Accommodation Agent</span>
+          </a>
+        </div>
+
+        <div class="nav-section">
+          <span class="nav-section-title">SYSTEM & DATA</span>
+          <a href="#" class="nav-item" data-view="history">
+            <i class="fa-solid fa-clock-rotate-left nav-icon"></i>
+            <span class="nav-label">Trip History</span>
+          </a>
+          <a href="#" class="nav-item" data-view="settings">
+            <i class="fa-solid fa-sliders nav-icon"></i>
+            <span class="nav-label">Settings</span>
+          </a>
+        </div>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="user-pill">
+          <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80" alt="User Avatar" class="user-avatar">
+          <div class="user-meta">
+            <span class="user-name">Alex Rivera</span>
+            <span class="user-plan"><i class="fa-solid fa-crown gold-icon"></i> Enterprise AI</span>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- MAIN CONTENT AREA -->
+    <main class="main-content">
+      
+      <!-- TOP NAVBAR -->
+      <header class="top-navbar">
+        <div class="navbar-left">
+          <button class="mobile-menu-btn" id="mobileMenuBtn">
+            <i class="fa-solid fa-bars"></i>
+          </button>
+          <div class="search-bar-wrapper">
+            <i class="fa-solid fa-magnifying-glass search-icon"></i>
+            <input type="text" id="globalSearchInput" placeholder="Search trips, agents..." />
+          </div>
+        </div>
+
+        <div class="navbar-right">
+          <button class="btn btn-primary-gradient header-action-btn nav-trigger" data-target="new-plan">
+            <i class="fa-solid fa-plus"></i>
+            <span>Create New Trip</span>
+          </button>
+
+          <div class="theme-toggle-box" id="themeToggleBtn" title="Toggle Dark/Light Mode">
+            <i class="fa-solid fa-moon dark-icon"></i>
+            <i class="fa-solid fa-sun light-icon"></i>
+          </div>
+
+          <div class="notification-dropdown-wrapper">
+            <button class="btn-icon icon-badge" id="notificationBtn" title="Notifications">
+              <i class="fa-solid fa-bell"></i>
+              <span class="badge-dot"></span>
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <!-- VIEWS CONTAINER -->
+      <div class="view-viewport">
+
+        <!-- 0. NEW TRIP PLAN PAGE (ENTERPRISE TRAVEL BOOKING UI) -->
+        <section class="app-view" id="view-new-plan">
+          <div class="view-header-enterprise">
+            <div class="header-left">
+              <div class="title-with-badge">
+                <h1 class="view-title">New Trip Plan</h1>
+                <span class="badge-enterprise"><i class="fa-solid fa-bolt"></i> Enterprise AI Booking UI</span>
+              </div>
+              <p class="view-subtitle">Customize your trip preferences. Completed in under 60 seconds with Multi-Agent AI.</p>
+            </div>
+            <div class="header-right-stats">
+              <div class="quick-stat-pill">
+                <i class="fa-solid fa-clock-rotate-left"></i>
+                <span>Est. Time: <strong>&lt; 1 min</strong></span>
+              </div>
+              <div class="quick-stat-pill cyan-glow">
+                <i class="fa-solid fa-microchip"></i>
+                <span>6 AI Agents Online</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Two Column Main Grid -->
+          <div class="new-plan-grid">
+            
+            <!-- LEFT COLUMN: COMPACT FORM WITH 4 SECTIONS -->
+            <div class="new-plan-form-column">
+              
+              <!-- SECTION 1: TRIP DETAILS -->
+              <div class="glass-card form-section-card-compact section-glow-blue">
+                <div class="section-card-header">
+                  <div class="section-badge-num">1</div>
+                  <div>
+                    <h3 class="section-card-title">Trip Details</h3>
+                    <p class="section-card-sub">Choose your target destination &amp; trip duration</p>
+                  </div>
+                </div>
+
+                <div class="form-grid-2 mt-3">
+                  <!-- Destination Input -->
+                  <div class="form-group">
+                    <label class="form-label-compact"><i class="fa-solid fa-location-dot icon-gradient"></i> Destination</label>
+                    <div class="input-with-icon">
+                      <i class="fa-solid fa-magnifying-glass input-icon-left"></i>
+                      <input type="text" id="npDestination" class="form-control-compact" placeholder="e.g. Goa, Manali, Paris..." value="" autocomplete="off">
+                    </div>
+                    <!-- Popular Destination Chips -->
+                    <div class="popular-dest-wrapper mt-2">
+                      <span class="chips-label">Popular:</span>
+                      <div class="chips-row" id="popularDestChips">
+                        <button type="button" class="dest-chip" data-dest="Goa"><i class="fa-solid fa-umbrella-beach"></i> Goa</button>
+                        <button type="button" class="dest-chip" data-dest="Manali"><i class="fa-solid fa-mountain"></i> Manali</button>
+                        <button type="button" class="dest-chip" data-dest="Kerala"><i class="fa-solid fa-water"></i> Kerala</button>
+                        <button type="button" class="dest-chip" data-dest="Jaipur"><i class="fa-solid fa-chess-castle"></i> Jaipur</button>
+                        <button type="button" class="dest-chip" data-dest="Udaipur"><i class="fa-solid fa-synagogue"></i> Udaipur</button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Number of Days Stepper -->
+                  <div class="form-group">
+                    <label class="form-label-compact"><i class="fa-solid fa-calendar-days icon-gradient"></i> Number of Days</label>
+                    <div class="stepper-box">
+                      <button type="button" class="btn-stepper" id="btnDaysMinus" title="Decrease days"><i class="fa-solid fa-minus"></i></button>
+                      <input type="number" id="npDays" class="stepper-input" value="5" min="1" max="14" readonly>
+                      <button type="button" class="btn-stepper" id="btnDaysPlus" title="Increase days"><i class="fa-solid fa-plus"></i></button>
+                    </div>
+                    <span class="stepper-hint">Min 1 • Max 14 Days</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- SECTION 2: BUDGET & TRAVELERS -->
+              <div class="glass-card form-section-card-compact section-glow-purple mt-3">
+                <div class="section-card-header">
+                  <div class="section-badge-num badge-purple">2</div>
+                  <div>
+                    <h3 class="section-card-title">Budget &amp; Travelers</h3>
+                    <p class="section-card-sub">Set estimated expenditure and group size</p>
+                  </div>
+                </div>
+
+                <div class="form-grid-2 mt-3">
+                  <!-- Budget Input -->
+                  <div class="form-group">
+                    <label class="form-label-compact"><i class="fa-solid fa-indian-rupee-sign icon-gradient-purple"></i> Budget (INR ₹)</label>
+                    <div class="input-with-icon">
+                      <span class="currency-symbol">₹</span>
+                      <input type="number" id="npBudget" class="form-control-compact pl-currency" placeholder="Enter budget" value="50000" step="5000" min="5000">
+                    </div>
+                    <!-- Budget Preset Buttons -->
+                    <div class="budget-presets-row mt-2" id="budgetPresets">
+                      <button type="button" class="preset-btn" data-value="20000">₹20,000</button>
+                      <button type="button" class="preset-btn" data-value="35000">₹35,000</button>
+                      <button type="button" class="preset-btn active" data-value="50000">₹50,000</button>
+                      <button type="button" class="preset-btn" data-value="75000">₹75,000</button>
+                      <button type="button" class="preset-btn" data-value="100000">₹1,00,000</button>
+                    </div>
+                  </div>
+
+                  <!-- Travelers Stepper -->
+                  <div class="form-group">
+                    <label class="form-label-compact"><i class="fa-solid fa-users icon-gradient-purple"></i> Travelers</label>
+                    <div class="stepper-box">
+                      <button type="button" class="btn-stepper" id="btnTravelersMinus" title="Decrease travelers"><i class="fa-solid fa-minus"></i></button>
+                      <input type="number" id="npTravelers" class="stepper-input" value="2" min="1" max="20" readonly>
+                      <button type="button" class="btn-stepper" id="btnTravelersPlus" title="Increase travelers"><i class="fa-solid fa-plus"></i></button>
+                    </div>
+                    <span class="stepper-hint">Solo, Couple or Group</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- SECTION 3: TRAVEL STYLE -->
+              <div class="glass-card form-section-card-compact section-glow-cyan mt-3">
+                <div class="section-card-header">
+                  <div class="section-badge-num badge-cyan">3</div>
+                  <div>
+                    <h3 class="section-card-title">Travel Style</h3>
+                    <p class="section-card-sub">Select your comfort &amp; experience tier (Select 1)</p>
+                  </div>
+                </div>
+
+                <div class="travel-style-cards-grid mt-3" id="travelStyleCards">
+                  <div class="style-card" data-style="Budget">
+                    <div class="style-card-radio"></div>
+                    <div class="style-card-icon"><i class="fa-solid fa-piggy-bank"></i></div>
+                    <div class="style-card-info">
+                      <h4 class="style-card-title">Budget</h4>
+                      <p class="style-card-desc">Cost-effective stays, local transport &amp; street food delights.</p>
+                    </div>
+                  </div>
+
+                  <div class="style-card active" data-style="Standard">
+                    <div class="style-card-radio"><i class="fa-solid fa-check"></i></div>
+                    <div class="style-card-icon"><i class="fa-solid fa-plane"></i></div>
+                    <div class="style-card-info">
+                      <h4 class="style-card-title">Standard</h4>
+                      <p class="style-card-desc">Balanced comfort 3-4★ hotels &amp; private cabs.</p>
+                    </div>
+                  </div>
+
+                  <div class="style-card" data-style="Luxury">
+                    <div class="style-card-radio"></div>
+                    <div class="style-card-icon"><i class="fa-solid fa-crown"></i></div>
+                    <div class="style-card-info">
+                      <h4 class="style-card-title">Luxury</h4>
+                      <p class="style-card-desc">5★ Resorts, VIP private transfers &amp; fine dining.</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- SECTION 4: INTERESTS -->
+              <div class="glass-card form-section-card-compact section-glow-pink mt-3">
+                <div class="section-card-header">
+                  <div class="section-badge-num badge-pink">4</div>
+                  <div class="header-flex-between flex-1">
+                    <div>
+                      <h3 class="section-card-title">Interests</h3>
+                      <p class="section-card-sub">Select your favorite activities (Maximum 5)</p>
+                    </div>
+                    <span class="selection-counter-badge" id="interestsCounter">0 / 5 selected</span>
+                  </div>
+                </div>
+
+                <div class="interests-chips-grid mt-3" id="interestsContainer">
+                  <button type="button" class="interest-chip" data-interest="Nature"><i class="fa-solid fa-tree"></i> Nature</button>
+                  <button type="button" class="interest-chip" data-interest="Adventure"><i class="fa-solid fa-person-hiking"></i> Adventure</button>
+                  <button type="button" class="interest-chip" data-interest="Beach"><i class="fa-solid fa-umbrella-beach"></i> Beach</button>
+                  <button type="button" class="interest-chip" data-interest="Food"><i class="fa-solid fa-utensils"></i> Food</button>
+                  <button type="button" class="interest-chip" data-interest="Shopping"><i class="fa-solid fa-bag-shopping"></i> Shopping</button>
+                  <button type="button" class="interest-chip" data-interest="Photography"><i class="fa-solid fa-camera"></i> Photography</button>
+                  <button type="button" class="interest-chip" data-interest="Historical"><i class="fa-solid fa-landmark"></i> Historical</button>
+                  <button type="button" class="interest-chip" data-interest="Nightlife"><i class="fa-solid fa-martini-glass-citrus"></i> Nightlife</button>
+                  <button type="button" class="interest-chip" data-interest="Wildlife"><i class="fa-solid fa-hippo"></i> Wildlife</button>
+                </div>
+              </div>
+
+              <!-- FORM VALIDATION ALERT BOX -->
+              <div id="npValidationAlert" class="validation-alert-banner mt-3" style="display: none;"></div>
+
+              <!-- SINGLE PRIMARY SUBMIT BUTTON -->
+              <div class="new-plan-bottom-bar mt-4">
+                <button class="btn btn-primary-gradient btn-lg glow-btn generate-submit-btn w-100" id="npGenerateBtn">
+                  <i class="fa-solid fa-wand-magic-sparkles"></i> Generate AI Travel Plan
+                </button>
+              </div>
+
+            </div>
+
+            <!-- RIGHT PANEL: 6 AI AGENT CARDS -->
+            <div class="new-plan-right-panel">
+              <div class="agents-ready-list">
+                <div class="glass-card ready-agent-card">
+                  <div class="ready-agent-left">
+                    <span class="agent-icon agent-color-dest"><i class="fa-solid fa-compass"></i></span>
+                    <div>
+                      <h4 class="ready-agent-title">Destination Agent</h4>
+                      <p class="ready-agent-desc">Attractions &amp; scenic spot analysis</p>
+                    </div>
+                  </div>
+                  <span class="status-pill-ready"><i class="fa-solid fa-circle"></i> Ready</span>
+                </div>
+
+                <div class="glass-card ready-agent-card">
+                  <div class="ready-agent-left">
+                    <span class="agent-icon agent-color-budget"><i class="fa-solid fa-wallet"></i></span>
+                    <div>
+                      <h4 class="ready-agent-title">Budget Agent</h4>
+                      <p class="ready-agent-desc">Calculates cost estimations in ₹ INR</p>
+                    </div>
+                  </div>
+                  <span class="status-pill-ready"><i class="fa-solid fa-circle"></i> Ready</span>
+                </div>
+
+                <div class="glass-card ready-agent-card">
+                  <div class="ready-agent-left">
+                    <span class="agent-icon agent-color-itin"><i class="fa-solid fa-calendar-days"></i></span>
+                    <div>
+                      <h4 class="ready-agent-title">Itinerary Agent</h4>
+                      <p class="ready-agent-desc">Creates day-wise travel schedule</p>
+                    </div>
+                  </div>
+                  <span class="status-pill-ready"><i class="fa-solid fa-circle"></i> Ready</span>
+                </div>
+
+                <div class="glass-card ready-agent-card">
+                  <div class="ready-agent-left">
+                    <span class="agent-icon agent-color-weather"><i class="fa-solid fa-cloud-sun"></i></span>
+                    <div>
+                      <h4 class="ready-agent-title">Weather Agent</h4>
+                      <p class="ready-agent-desc">Provides micro-climate forecast</p>
+                    </div>
+                  </div>
+                  <span class="status-pill-ready"><i class="fa-solid fa-circle"></i> Ready</span>
+                </div>
+
+                <div class="glass-card ready-agent-card">
+                  <div class="ready-agent-left">
+                    <span class="agent-icon agent-color-transport"><i class="fa-solid fa-plane-departure"></i></span>
+                    <div>
+                      <h4 class="ready-agent-title">Transport Agent</h4>
+                      <p class="ready-agent-desc">Finds optimal flight/train routes</p>
+                    </div>
+                  </div>
+                  <span class="status-pill-ready"><i class="fa-solid fa-circle"></i> Ready</span>
+                </div>
+
+                <div class="glass-card ready-agent-card">
+                  <div class="ready-agent-left">
+                    <span class="agent-icon agent-color-hotel"><i class="fa-solid fa-hotel"></i></span>
+                    <div>
+                      <h4 class="ready-agent-title">Accommodation Agent</h4>
+                      <p class="ready-agent-desc">Matches top hotel recommendations</p>
+                    </div>
+                  </div>
+                  <span class="status-pill-ready"><i class="fa-solid fa-circle"></i> Ready</span>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </section>
+
+        <!-- PAGE 2: PROFESSIONAL AI PROCESSING SCREEN -->
+        <section class="app-view" id="view-processing">
+          <div class="processing-page-container">
+            
+            <div class="processing-header text-center">
+              <span class="badge-live mb-2" style="background: rgba(0,242,254,0.15); color: var(--color-primary); border-color: rgba(0,242,254,0.3);">
+                <i class="fa-solid fa-brain-circuit fa-spin"></i> MULTI-AGENT EXECUTION IN PROGRESS
+              </span>
+              <h1 class="processing-title">Creating Your AI Travel Plan</h1>
+              <p class="processing-subtitle">Our Multi-Agent AI System is analyzing your trip.</p>
+            </div>
+
+            <!-- Large Circular Loading Animation -->
+            <div class="circular-loader-wrapper mt-4">
+              <div class="circular-loader-ring">
+                <div class="inner-pulse"></div>
+                <div class="loader-content">
+                  <i class="fa-solid fa-brain-circuit loader-brain-icon"></i>
+                  <span class="loader-pct font-mono" id="procProgressPct">0%</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Progress Bar (0% -> 100%) -->
+            <div class="proc-progress-container mt-4">
+              <div class="proc-progress-bar-track">
+                <div class="proc-progress-bar-fill" id="procProgressBar" style="width: 0%;"></div>
+              </div>
+              <div class="proc-progress-meta font-mono mt-2">
+                <span id="procStatusText">Initializing Multi-Agent Controller...</span>
+                <span id="procTripIdTag" class="text-cyan">Trip ID: --</span>
+              </div>
+            </div>
+
+            <!-- Six Agents + Controller Workflow Execution Grid -->
+            <div class="agents-processing-grid mt-5">
+              
+              <!-- 1. Multi-Agent Controller -->
+              <div class="glass-card proc-agent-card waiting" id="proc-agent-controller">
+                <div class="proc-agent-header">
+                  <div class="proc-agent-left">
+                    <span class="proc-agent-icon cyan-gradient"><i class="fa-solid fa-diagram-project"></i></span>
+                    <div>
+                      <h4 class="proc-agent-name">Multi-Agent Controller</h4>
+                      <span class="proc-agent-sub">System Orchestrator</span>
+                    </div>
+                  </div>
+                  <div class="proc-agent-state" id="proc-state-controller">
+                    <span class="state-pill state-waiting"><i class="fa-regular fa-clock"></i> Waiting</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 2. Destination Agent -->
+              <div class="glass-card proc-agent-card waiting" id="proc-agent-dest">
+                <div class="proc-agent-header">
+                  <div class="proc-agent-left">
+                    <span class="proc-agent-icon agent-color-dest"><i class="fa-solid fa-compass"></i></span>
+                    <div>
+                      <h4 class="proc-agent-name">Destination Agent</h4>
+                      <span class="proc-agent-sub">Attraction &amp; Landmark Discovery</span>
+                    </div>
+                  </div>
+                  <div class="proc-agent-state" id="proc-state-dest">
+                    <span class="state-pill state-waiting"><i class="fa-regular fa-clock"></i> Waiting</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 3. Budget Agent -->
+              <div class="glass-card proc-agent-card waiting" id="proc-agent-budget">
+                <div class="proc-agent-header">
+                  <div class="proc-agent-left">
+                    <span class="proc-agent-icon agent-color-budget"><i class="fa-solid fa-wallet"></i></span>
+                    <div>
+                      <h4 class="proc-agent-name">Budget Agent</h4>
+                      <span class="proc-agent-sub">Cost Estimation &amp; INR Breakdown</span>
+                    </div>
+                  </div>
+                  <div class="proc-agent-state" id="proc-state-budget">
+                    <span class="state-pill state-waiting"><i class="fa-regular fa-clock"></i> Waiting</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 4. Weather Agent -->
+              <div class="glass-card proc-agent-card waiting" id="proc-agent-weather">
+                <div class="proc-agent-header">
+                  <div class="proc-agent-left">
+                    <span class="proc-agent-icon agent-color-weather"><i class="fa-solid fa-cloud-sun"></i></span>
+                    <div>
+                      <h4 class="proc-agent-name">Weather Agent</h4>
+                      <span class="proc-agent-sub">Climate &amp; Forecast Analysis</span>
+                    </div>
+                  </div>
+                  <div class="proc-agent-state" id="proc-state-weather">
+                    <span class="state-pill state-waiting"><i class="fa-regular fa-clock"></i> Waiting</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 5. Transport Agent -->
+              <div class="glass-card proc-agent-card waiting" id="proc-agent-transport">
+                <div class="proc-agent-header">
+                  <div class="proc-agent-left">
+                    <span class="proc-agent-icon agent-color-transport"><i class="fa-solid fa-plane-departure"></i></span>
+                    <div>
+                      <h4 class="proc-agent-name">Transport Agent</h4>
+                      <span class="proc-agent-sub">Route &amp; Transit Optimization</span>
+                    </div>
+                  </div>
+                  <div class="proc-agent-state" id="proc-state-transport">
+                    <span class="state-pill state-waiting"><i class="fa-regular fa-clock"></i> Waiting</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 6. Accommodation Agent -->
+              <div class="glass-card proc-agent-card waiting" id="proc-agent-hotel">
+                <div class="proc-agent-header">
+                  <div class="proc-agent-left">
+                    <span class="proc-agent-icon agent-color-hotel"><i class="fa-solid fa-hotel"></i></span>
+                    <div>
+                      <h4 class="proc-agent-name">Accommodation Agent</h4>
+                      <span class="proc-agent-sub">Hotel &amp; Resort Selection</span>
+                    </div>
+                  </div>
+                  <div class="proc-agent-state" id="proc-state-hotel">
+                    <span class="state-pill state-waiting"><i class="fa-regular fa-clock"></i> Waiting</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 7. Itinerary Agent -->
+              <div class="glass-card proc-agent-card waiting" id="proc-agent-itin">
+                <div class="proc-agent-header">
+                  <div class="proc-agent-left">
+                    <span class="proc-agent-icon agent-color-itin"><i class="fa-solid fa-calendar-days"></i></span>
+                    <div>
+                      <h4 class="proc-agent-name">Itinerary Agent</h4>
+                      <span class="proc-agent-sub">Day-Wise Schedule Synthesis</span>
+                    </div>
+                  </div>
+                  <div class="proc-agent-state" id="proc-state-itin">
+                    <span class="state-pill state-waiting"><i class="fa-regular fa-clock"></i> Waiting</span>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+
+          </div>
+        </section>
+
+
+        <!-- 1. DYNAMIC DASHBOARD VIEW -->
+        <section class="app-view active" id="view-dashboard">
+          <div class="view-header">
+            <div>
+              <h1 class="view-title">Multi-Agent Travel Dashboard</h1>
+              <p class="view-subtitle">Dynamic control center displaying active AI agent execution & generated trip plans.</p>
+            </div>
+            <button class="btn btn-primary-gradient nav-trigger" data-target="new-plan">
+              <i class="fa-solid fa-plus"></i> Create New Trip
+            </button>
+          </div>
+
+          <!-- Top Metric Cards -->
+          <div class="metrics-grid">
+            <div class="glass-card metric-card">
+              <div class="metric-icon-box cyan-gradient">
+                <i class="fa-solid fa-route"></i>
+              </div>
+              <div class="metric-body">
+                <span class="metric-label">Total Trips</span>
+                <div class="metric-value-group">
+                  <h2 class="metric-value" id="dashTotalTrips">0</h2>
+                </div>
+                <span class="metric-sub">User Created Trips</span>
+              </div>
+            </div>
+
+            <div class="glass-card metric-card">
+              <div class="metric-icon-box purple-gradient">
+                <i class="fa-solid fa-robot"></i>
+              </div>
+              <div class="metric-body">
+                <span class="metric-label">Active Agents</span>
+                <div class="metric-value-group">
+                  <h2 class="metric-value" id="dashActiveAgents">6 / 6</h2>
+                </div>
+                <span class="metric-sub">Multi-Agent System</span>
+              </div>
+            </div>
+
+            <div class="glass-card metric-card">
+              <div class="metric-icon-box emerald-gradient">
+                <i class="fa-solid fa-indian-rupee-sign"></i>
+              </div>
+              <div class="metric-body">
+                <span class="metric-label">Trip Budget</span>
+                <div class="metric-value-group">
+                  <h2 class="metric-value" id="dashTotalBudget">₹0</h2>
+                </div>
+                <span class="metric-sub">Current Trip Budget</span>
+              </div>
+            </div>
+
+            <div class="glass-card metric-card">
+              <div class="metric-icon-box gold-gradient">
+                <i class="fa-solid fa-circle-check"></i>
+              </div>
+              <div class="metric-body">
+                <span class="metric-label">Trips Completed</span>
+                <div class="metric-value-group">
+                  <h2 class="metric-value" id="dashTripsCompleted">0</h2>
+                </div>
+                <span class="metric-sub">Fully Generated Plans</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Active Generated Trip Banner -->
+          <div id="dashActiveTripBanner" style="display: none;" class="mb-4">
+            <!-- Dynamically populated -->
+          </div>
+
+          <!-- AI Agent Execution Status Cards Section -->
+          <div class="glass-card section-card">
+            <div class="card-header-bar">
+              <div>
+                <h3 class="card-title"><i class="fa-solid fa-microchip gradient-text"></i> AI Agent Execution Status</h3>
+                <p class="card-desc">Status of all specialized AI agents for your active trip request.</p>
+              </div>
+            </div>
+
+            <div class="agents-status-grid">
+              <div class="agent-status-tile" id="dashAgentTile-dest" onclick="switchView('agent-destination')">
+                <div class="tile-header">
+                  <span class="tile-icon agent-color-dest"><i class="fa-solid fa-compass"></i></span>
+                  <span class="status-badge-dynamic waiting" id="dashAgentBadge-dest">Waiting for User Input</span>
+                </div>
+                <h4 class="tile-title">Destination Agent</h4>
+                <p class="tile-desc-sub">Finds tourist attractions & destination analysis.</p>
+              </div>
+
+              <div class="agent-status-tile" id="dashAgentTile-budget" onclick="switchView('agent-budget')">
+                <div class="tile-header">
+                  <span class="tile-icon agent-color-budget"><i class="fa-solid fa-wallet"></i></span>
+                  <span class="status-badge-dynamic waiting" id="dashAgentBadge-budget">Waiting for User Input</span>
+                </div>
+                <h4 class="tile-title">Budget Agent</h4>
+                <p class="tile-desc-sub">Calculates cost estimations in ₹ INR.</p>
+              </div>
+
+              <div class="agent-status-tile" id="dashAgentTile-itin" onclick="switchView('agent-itinerary')">
+                <div class="tile-header">
+                  <span class="tile-icon agent-color-itin"><i class="fa-solid fa-calendar-days"></i></span>
+                  <span class="status-badge-dynamic waiting" id="dashAgentBadge-itin">Waiting for User Input</span>
+                </div>
+                <h4 class="tile-title">Itinerary Agent</h4>
+                <p class="tile-desc-sub">Creates day-wise travel schedule.</p>
+              </div>
+
+              <div class="agent-status-tile" id="dashAgentTile-weather" onclick="switchView('agent-weather')">
+                <div class="tile-header">
+                  <span class="tile-icon agent-color-weather"><i class="fa-solid fa-cloud-sun"></i></span>
+                  <span class="status-badge-dynamic waiting" id="dashAgentBadge-weather">Waiting for User Input</span>
+                </div>
+                <h4 class="tile-title">Weather Agent</h4>
+                <p class="tile-desc-sub">Provides weather forecast.</p>
+              </div>
+
+              <div class="agent-status-tile" id="dashAgentTile-transport" onclick="switchView('agent-transport')">
+                <div class="tile-header">
+                  <span class="tile-icon agent-color-transport"><i class="fa-solid fa-plane-departure"></i></span>
+                  <span class="status-badge-dynamic waiting" id="dashAgentBadge-transport">Waiting for User Input</span>
+                </div>
+                <h4 class="tile-title">Transport Agent</h4>
+                <p class="tile-desc-sub">Finds best transport options.</p>
+              </div>
+
+              <div class="agent-status-tile" id="dashAgentTile-hotel" onclick="switchView('agent-accommodation')">
+                <div class="tile-header">
+                  <span class="tile-icon agent-color-hotel"><i class="fa-solid fa-hotel"></i></span>
+                  <span class="status-badge-dynamic waiting" id="dashAgentBadge-hotel">Waiting for User Input</span>
+                </div>
+                <h4 class="tile-title">Accommodation Agent</h4>
+                <p class="tile-desc-sub">Suggests hotel recommendations.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Dynamic Lower Grid -->
+          <div class="dashboard-lower-grid mt-4">
+            
+            <!-- Recent Trips Section -->
+            <div class="glass-card section-card">
+              <div class="card-header-bar">
+                <h3 class="card-title"><i class="fa-solid fa-plane-up"></i> Recent Trips</h3>
+              </div>
+              <div id="dashRecentTripsContainer">
+                <div class="empty-state-box">
+                  <i class="fa-solid fa-suitcase-rolling empty-state-icon"></i>
+                  <h4 class="empty-state-title">No trips planned yet.</h4>
+                  <p class="empty-state-desc">Create your first trip using the New Trip Plan form.</p>
+                  <button class="btn btn-primary-gradient btn-sm mt-3 nav-trigger" data-target="new-plan">
+                    <i class="fa-solid fa-plus"></i> Create New Trip
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Recent Agent Activity Section -->
+            <div class="glass-card section-card">
+              <div class="card-header-bar">
+                <h3 class="card-title"><i class="fa-solid fa-terminal"></i> Recent Agent Activity</h3>
+              </div>
+              <div id="dashActivityLogContainer" class="activity-log-stream font-mono">
+                <div class="empty-state-box py-4">
+                  <i class="fa-solid fa-terminal empty-state-icon"></i>
+                  <h4 class="empty-state-title">No agent activity yet.</h4>
+                  <p class="empty-state-desc">Activities will stream live when you generate a trip plan.</p>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </section>
+
+
+        <!-- 2. TRIP OVERVIEW PAGE -->
+        <section class="app-view" id="view-controller">
+          <div class="view-header">
+            <div>
+              <h1 class="view-title">Trip Overview</h1>
+              <p class="view-subtitle">Review your trip details before viewing AI-generated results.</p>
+            </div>
+            <button class="btn btn-primary-gradient nav-trigger" data-target="new-plan">
+              <i class="fa-solid fa-plus"></i> Create New Trip
+            </button>
+          </div>
+
+          <!-- SECTION 1: TRIP SUMMARY CARD (TWO COLUMN LAYOUT) -->
+          <div class="glass-card section-card mb-4">
+            <div class="card-header-bar">
+              <h3 class="card-title"><i class="fa-solid fa-clipboard-list gradient-text"></i> Trip Summary</h3>
+              <span class="badge-sub" id="overviewStatusBadge">Awaiting Plan</span>
+            </div>
+
+            <div class="overview-summary-grid mt-3" id="overviewTripSummaryContainer">
+              <!-- Dynamically populated in 2-column layout -->
+            </div>
+          </div>
+
+          <!-- SECTION 2: AI AGENT STATUS (6 MODERN CARDS) -->
+          <div class="mb-4">
+            <div class="section-title-bar mb-3">
+              <h3 class="card-title"><i class="fa-solid fa-microchip gradient-text"></i> AI Agent Status</h3>
+              <p class="card-desc" style="font-size: 13px; color: var(--text-secondary);">Real-time status and output readiness for all six specialized AI agents.</p>
+            </div>
+
+            <div class="overview-agents-grid" id="overviewAgentsGrid">
+              <!-- 1. Destination Agent -->
+              <div class="glass-card overview-agent-card" id="ov-card-dest">
+                <div class="ov-agent-header">
+                  <div class="ov-agent-left">
+                    <span class="ov-agent-icon agent-color-dest"><i class="fa-solid fa-compass"></i></span>
+                    <div>
+                      <h4 class="ov-agent-name">Destination Agent</h4>
+                      <span class="ov-agent-sub">Attraction &amp; Spot Analysis</span>
+                    </div>
+                  </div>
+                  <span class="state-pill state-waiting" id="ov-status-dest"><i class="fa-regular fa-clock"></i> Waiting</span>
+                </div>
+                <div class="ov-agent-body mt-3">
+                  <div class="ov-progress-track">
+                    <div class="ov-progress-fill" id="ov-prog-dest" style="width: 0%;"></div>
+                  </div>
+                  <div class="ov-agent-meta mt-2">
+                    <span class="meta-label">Response Time: <strong id="ov-time-dest">--</strong></span>
+                    <button class="btn btn-sm btn-glass ov-details-btn" onclick="switchView('agent-destination')">
+                      View Details <i class="fa-solid fa-chevron-right"></i>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 2. Budget Agent -->
+              <div class="glass-card overview-agent-card" id="ov-card-budget">
+                <div class="ov-agent-header">
+                  <div class="ov-agent-left">
+                    <span class="ov-agent-icon agent-color-budget"><i class="fa-solid fa-wallet"></i></span>
+                    <div>
+                      <h4 class="ov-agent-name">Budget Agent</h4>
+                      <span class="ov-agent-sub">Cost Estimation (₹ INR)</span>
+                    </div>
+                  </div>
+                  <span class="state-pill state-waiting" id="ov-status-budget"><i class="fa-regular fa-clock"></i> Waiting</span>
+                </div>
+                <div class="ov-agent-body mt-3">
+                  <div class="ov-progress-track">
+                    <div class="ov-progress-fill" id="ov-prog-budget" style="width: 0%;"></div>
+                  </div>
+                  <div class="ov-agent-meta mt-2">
+                    <span class="meta-label">Response Time: <strong id="ov-time-budget">--</strong></span>
+                    <button class="btn btn-sm btn-glass ov-details-btn" onclick="switchView('agent-budget')">
+                      View Details <i class="fa-solid fa-chevron-right"></i>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 3. Weather Agent -->
+              <div class="glass-card overview-agent-card" id="ov-card-weather">
+                <div class="ov-agent-header">
+                  <div class="ov-agent-left">
+                    <span class="ov-agent-icon agent-color-weather"><i class="fa-solid fa-cloud-sun"></i></span>
+                    <div>
+                      <h4 class="ov-agent-name">Weather Agent</h4>
+                      <span class="ov-agent-sub">Climate &amp; Forecast advisory</span>
+                    </div>
+                  </div>
+                  <span class="state-pill state-waiting" id="ov-status-weather"><i class="fa-regular fa-clock"></i> Waiting</span>
+                </div>
+                <div class="ov-agent-body mt-3">
+                  <div class="ov-progress-track">
+                    <div class="ov-progress-fill" id="ov-prog-weather" style="width: 0%;"></div>
+                  </div>
+                  <div class="ov-agent-meta mt-2">
+                    <span class="meta-label">Response Time: <strong id="ov-time-weather">--</strong></span>
+                    <button class="btn btn-sm btn-glass ov-details-btn" onclick="switchView('agent-weather')">
+                      View Details <i class="fa-solid fa-chevron-right"></i>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 4. Transport Agent -->
+              <div class="glass-card overview-agent-card" id="ov-card-transport">
+                <div class="ov-agent-header">
+                  <div class="ov-agent-left">
+                    <span class="ov-agent-icon agent-color-transport"><i class="fa-solid fa-plane-departure"></i></span>
+                    <div>
+                      <h4 class="ov-agent-name">Transport Agent</h4>
+                      <span class="ov-agent-sub">Transit Options &amp; Flights</span>
+                    </div>
+                  </div>
+                  <span class="state-pill state-waiting" id="ov-status-transport"><i class="fa-regular fa-clock"></i> Waiting</span>
+                </div>
+                <div class="ov-agent-body mt-3">
+                  <div class="ov-progress-track">
+                    <div class="ov-progress-fill" id="ov-prog-transport" style="width: 0%;"></div>
+                  </div>
+                  <div class="ov-agent-meta mt-2">
+                    <span class="meta-label">Response Time: <strong id="ov-time-transport">--</strong></span>
+                    <button class="btn btn-sm btn-glass ov-details-btn" onclick="switchView('agent-transport')">
+                      View Details <i class="fa-solid fa-chevron-right"></i>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 5. Accommodation Agent -->
+              <div class="glass-card overview-agent-card" id="ov-card-hotel">
+                <div class="ov-agent-header">
+                  <div class="ov-agent-left">
+                    <span class="ov-agent-icon agent-color-hotel"><i class="fa-solid fa-hotel"></i></span>
+                    <div>
+                      <h4 class="ov-agent-name">Accommodation Agent</h4>
+                      <span class="ov-agent-sub">Hotel &amp; Resort Stays</span>
+                    </div>
+                  </div>
+                  <span class="state-pill state-waiting" id="ov-status-hotel"><i class="fa-regular fa-clock"></i> Waiting</span>
+                </div>
+                <div class="ov-agent-body mt-3">
+                  <div class="ov-progress-track">
+                    <div class="ov-progress-fill" id="ov-prog-hotel" style="width: 0%;"></div>
+                  </div>
+                  <div class="ov-agent-meta mt-2">
+                    <span class="meta-label">Response Time: <strong id="ov-time-hotel">--</strong></span>
+                    <button class="btn btn-sm btn-glass ov-details-btn" onclick="switchView('agent-accommodation')">
+                      View Details <i class="fa-solid fa-chevron-right"></i>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 6. Itinerary Agent -->
+              <div class="glass-card overview-agent-card" id="ov-card-itin">
+                <div class="ov-agent-header">
+                  <div class="ov-agent-left">
+                    <span class="ov-agent-icon agent-color-itin"><i class="fa-solid fa-calendar-days"></i></span>
+                    <div>
+                      <h4 class="ov-agent-name">Itinerary Agent</h4>
+                      <span class="ov-agent-sub">Day-Wise Plan Schedule</span>
+                    </div>
+                  </div>
+                  <span class="state-pill state-waiting" id="ov-status-itin"><i class="fa-regular fa-clock"></i> Waiting</span>
+                </div>
+                <div class="ov-agent-body mt-3">
+                  <div class="ov-progress-track">
+                    <div class="ov-progress-fill" id="ov-prog-itin" style="width: 0%;"></div>
+                  </div>
+                  <div class="ov-agent-meta mt-2">
+                    <span class="meta-label">Response Time: <strong id="ov-time-itin">--</strong></span>
+                    <button class="btn btn-sm btn-glass ov-details-btn" onclick="switchView('agent-itinerary')">
+                      View Details <i class="fa-solid fa-chevron-right"></i>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- SECTION 3 & SECTION 4 SPLIT CONTAINER -->
+          <div class="overview-split-grid mb-4">
+            
+            <!-- SECTION 3: PLANNING PROGRESS -->
+            <div class="glass-card section-card">
+              <div class="card-header-bar">
+                <h3 class="card-title"><i class="fa-solid fa-chart-line gradient-text"></i> Planning Progress</h3>
+                <span class="badge-sub font-mono" id="ovOverallPctTag">0%</span>
+              </div>
+              <div class="overview-progress-body mt-3">
+                <div class="ov-main-progress-track">
+                  <div class="ov-main-progress-fill" id="ovMainProgressBar" style="width: 0%;"></div>
+                </div>
+
+                <div class="overview-metrics-row mt-4">
+                  <div class="ov-metric-pill">
+                    <span class="ov-metric-label">Completed Agents</span>
+                    <h4 class="ov-metric-value" id="ovCompletedCount">0 / 6</h4>
+                  </div>
+                  <div class="ov-metric-pill">
+                    <span class="ov-metric-label">Current Agent</span>
+                    <h4 class="ov-metric-value text-cyan" id="ovCurrentAgentName">None</h4>
+                  </div>
+                  <div class="ov-metric-pill">
+                    <span class="ov-metric-label">Est. Time Remaining</span>
+                    <h4 class="ov-metric-value" id="ovTimeRemaining">0s</h4>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- SECTION 4: LIVE ACTIVITY TIMELINE -->
+            <div class="glass-card section-card">
+              <div class="card-header-bar">
+                <h3 class="card-title"><i class="fa-solid fa-timeline gradient-text"></i> Live Activity Timeline</h3>
+              </div>
+              <div class="overview-timeline-list mt-3" id="overviewTimelineContainer">
+                <!-- Dynamically populated timeline items -->
+              </div>
+            </div>
+
+          </div>
+
+          <!-- BOTTOM ACTION BAR -->
+          <div class="overview-bottom-action-bar">
+            <button class="btn btn-primary-gradient btn-lg w-100 glow-btn" id="btnViewGeneratedPlan" disabled>
+              <i class="fa-solid fa-map-location-dot"></i> View Generated Travel Plan
+            </button>
+          </div>
+
+        </section>
+
+
+        <!-- 3. DESTINATION AGENT PAGE -->
+        <section class="app-view" id="view-agent-destination">
+          <div class="view-header">
+            <div>
+              <div class="agent-hero-badge dest-badge"><i class="fa-solid fa-compass"></i> SPECIALIZED AGENT #1</div>
+              <h1 class="view-title">Destination Agent</h1>
+              <p class="view-subtitle">Finds tourist attractions & destination analysis based on user preferences.</p>
+            </div>
+          </div>
+
+          <div id="destAgentPageContainer">
+            <!-- Dynamically populated -->
+          </div>
+        </section>
+
+
+        <!-- 4. BUDGET AGENT PAGE -->
+        <section class="app-view" id="view-agent-budget">
+          <div class="view-header">
+            <div>
+              <div class="agent-hero-badge budget-badge"><i class="fa-solid fa-wallet"></i> SPECIALIZED AGENT #2</div>
+              <h1 class="view-title">Budget Agent</h1>
+              <p class="view-subtitle">Calculates cost estimations in ₹ INR.</p>
+            </div>
+          </div>
+
+          <div id="budgetAgentPageContainer">
+            <!-- Dynamically populated -->
+          </div>
+        </section>
+
+
+        <!-- 5. ITINERARY AGENT PAGE -->
+        <section class="app-view" id="view-agent-itinerary">
+          <div class="view-header">
+            <div>
+              <div class="agent-hero-badge itin-badge"><i class="fa-solid fa-calendar-days"></i> SPECIALIZED AGENT #3</div>
+              <h1 class="view-title">Itinerary Agent</h1>
+              <p class="view-subtitle">Creates day-wise travel schedule with <strong>100% unique non-repeating locations</strong>.</p>
+            </div>
+          </div>
+
+          <div id="itinAgentPageContainer">
+            <!-- Dynamically populated -->
+          </div>
+        </section>
+
+
+        <!-- 6. WEATHER AGENT PAGE -->
+        <section class="app-view" id="view-agent-weather">
+          <div class="view-header">
+            <div>
+              <div class="agent-hero-badge weather-badge"><i class="fa-solid fa-cloud-sun"></i> SPECIALIZED AGENT #4</div>
+              <h1 class="view-title">Weather Agent</h1>
+              <p class="view-subtitle">Provides weather forecast & climate advisory for your trip.</p>
+            </div>
+          </div>
+
+          <div id="weatherAgentPageContainer">
+            <!-- Dynamically populated -->
+          </div>
+        </section>
+
+
+        <!-- 7. TRANSPORT AGENT PAGE -->
+        <section class="app-view" id="view-agent-transport">
+          <div class="view-header">
+            <div>
+              <div class="agent-hero-badge transport-badge"><i class="fa-solid fa-plane-departure"></i> SPECIALIZED AGENT #5</div>
+              <h1 class="view-title">Transport Agent</h1>
+              <p class="view-subtitle">Finds best transport options for your selected route.</p>
+            </div>
+          </div>
+
+          <div id="transportAgentPageContainer">
+            <!-- Dynamically populated -->
+          </div>
+        </section>
+
+
+        <!-- 8. ACCOMMODATION AGENT PAGE -->
+        <section class="app-view" id="view-agent-accommodation">
+          <div class="view-header">
+            <div>
+              <div class="agent-hero-badge hotel-badge"><i class="fa-solid fa-hotel"></i> SPECIALIZED AGENT #6</div>
+              <h1 class="view-title">Accommodation Agent</h1>
+              <p class="view-subtitle">Suggests hotel recommendations for your destination.</p>
+            </div>
+          </div>
+
+          <div id="hotelAgentPageContainer">
+            <!-- Dynamically populated -->
+          </div>
+        </section>
+
+
+        <!-- 9. TRIP HISTORY VIEW -->
+        <section class="app-view" id="view-history">
+          <div class="view-header">
+            <div>
+              <h1 class="view-title">Trip History & Saved Itineraries</h1>
+              <p class="view-subtitle">Review or export your generated travel plans.</p>
+            </div>
+            <button class="btn btn-sm btn-glass" id="clearAllHistoryBtn"><i class="fa-solid fa-trash-can"></i> Clear History</button>
+          </div>
+
+          <div class="history-grid" id="historyGridContainer">
+            <!-- Dynamically populated -->
+          </div>
+        </section>
+
+
+        <!-- 10. SETTINGS VIEW -->
+        <section class="app-view" id="view-settings">
+          <div class="view-header">
+            <div>
+              <h1 class="view-title">System Settings & Agent Config</h1>
+              <p class="view-subtitle">Tune AI agent parameters and system preferences.</p>
+            </div>
+          </div>
+
+          <div class="settings-sections-grid">
+            <div class="glass-card section-card">
+              <div class="card-header-bar">
+                <h3 class="card-title"><i class="fa-solid fa-brain"></i> Neural AI Model Backend</h3>
+              </div>
+              <div class="settings-form">
+                <div class="form-group">
+                  <label>Primary Orchestrator Engine</label>
+                  <select class="form-control">
+                    <option selected>Google Gemini 1.5 Pro (Recommended)</option>
+                    <option>OpenAI GPT-4o (Omni)</option>
+                    <option>Anthropic Claude 3.5 Sonnet</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>Strict Non-Repeating Location Constraint</label>
+                  <div class="toggle-switch-wrapper">
+                    <input type="checkbox" id="strictLocationToggle" checked>
+                    <label for="strictLocationToggle">Enforce 100% Unique Places per Day</label>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="glass-card section-card">
+              <div class="card-header-bar">
+                <h3 class="card-title"><i class="fa-solid fa-sliders"></i> Default User Preferences</h3>
+              </div>
+              <div class="settings-form">
+                <div class="form-group">
+                  <label>Theme Preference</label>
+                  <select class="form-control" id="settingsThemeSelect">
+                    <option value="dark">Dark Space Glassmorphism (Default)</option>
+                    <option value="light">Light Premium Glass</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+      </div>
+    </main>
+  </div>
+
+  <!-- FULL-SCREEN AGENT LOADING OVERLAY WITH WORKFLOW ANIMATION -->
+  <div class="full-screen-loader-backdrop" id="fullScreenAgentLoader">
+    <div class="loader-modal-glass">
+      <div class="loader-top-header">
+        <div class="loader-brand-logo">
+          <i class="fa-solid fa-brain-circuit"></i>
+          <span>Multi-Agent AI Controller Processing</span>
+        </div>
+        <span class="loader-pct-pill font-mono" id="fsProgressPct">0%</span>
+      </div>
+
+      <!-- Main Loader Step Flow Diagram -->
+      <div class="loader-workflow-pipeline">
+        <div class="pipeline-node node-user-step active" id="node-fs-user">
+          <i class="fa-solid fa-user"></i>
+          <span>User Input</span>
+        </div>
+
+        <div class="pipeline-connector"><div class="connector-line"></div></div>
+
+        <div class="pipeline-node node-controller-step" id="node-fs-ctrl">
+          <i class="fa-solid fa-brain-circuit"></i>
+          <span>Controller</span>
+        </div>
+
+        <div class="pipeline-connector"><div class="connector-line"></div></div>
+
+        <div class="pipeline-node" id="node-fs-dest">
+          <i class="fa-solid fa-compass agent-color-dest"></i>
+          <span>Destination</span>
+        </div>
+
+        <div class="pipeline-connector"><div class="connector-line"></div></div>
+
+        <div class="pipeline-node" id="node-fs-budget">
+          <i class="fa-solid fa-wallet agent-color-budget"></i>
+          <span>Budget</span>
+        </div>
+
+        <div class="pipeline-connector"><div class="connector-line"></div></div>
+
+        <div class="pipeline-node" id="node-fs-weather">
+          <i class="fa-solid fa-cloud-sun agent-color-weather"></i>
+          <span>Weather</span>
+        </div>
+
+        <div class="pipeline-connector"><div class="connector-line"></div></div>
+
+        <div class="pipeline-node" id="node-fs-transport">
+          <i class="fa-solid fa-plane-departure agent-color-transport"></i>
+          <span>Transport</span>
+        </div>
+
+        <div class="pipeline-connector"><div class="connector-line"></div></div>
+
+        <div class="pipeline-node" id="node-fs-hotel">
+          <i class="fa-solid fa-hotel agent-color-hotel"></i>
+          <span>Hotel</span>
+        </div>
+
+        <div class="pipeline-connector"><div class="connector-line"></div></div>
+
+        <div class="pipeline-node" id="node-fs-itin">
+          <i class="fa-solid fa-calendar-days agent-color-itin"></i>
+          <span>Itinerary</span>
+        </div>
+      </div>
+
+      <!-- Progress Fill Bar -->
+      <div class="fs-progress-track mt-4">
+        <div class="fs-progress-fill" id="fsProgressBar" style="width: 0%;"></div>
+      </div>
+
+      <!-- Streaming Message Banner -->
+      <div class="fs-message-banner mt-3 font-mono">
+        <i class="fa-solid fa-spinner fa-spin text-cyan"></i>
+        <span id="fsStatusMsg">Initializing neural agent framework...</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Leaflet JS for Maps -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Main Application Script -->
+  <script src="app.js"></script>
+</body>
+</html>
