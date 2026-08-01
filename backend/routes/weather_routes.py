@@ -1,17 +1,17 @@
 from fastapi import APIRouter, HTTPException, status
 from schemas.weather_schema import WeatherRequest, WeatherResponse
-from agents.weather_agent import run_weather_agent
+from agents.weather_agent import run_weather_agent_async
 
 router = APIRouter(prefix="/api", tags=["Weather Agent"])
 
 @router.post("/weather", response_model=WeatherResponse, status_code=status.HTTP_200_OK)
-def get_weather(payload: WeatherRequest):
+async def get_weather(payload: WeatherRequest):
     """
     POST /api/weather
-    Accepts destination and days, and returns real weather analysis, 4-slot daily forecasts, and AI suggestions.
+    Async endpoint returning weather analysis, 4-slot daily forecasts, and AI suggestions.
     """
     try:
-        res = run_weather_agent(destination=payload.destination, days=payload.days or 3)
+        res = await run_weather_agent_async(destination=payload.destination, days=payload.days or 3)
         return WeatherResponse(**res)
     except Exception as exc:
         raise HTTPException(

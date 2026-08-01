@@ -9,10 +9,10 @@ from fastapi.responses import RedirectResponse
 from schemas.destination_schema import DestinationRequest, DestinationResponse
 
 try:
-    from app.agents.destination_agent import run_destination_agent
+    from app.agents.destination_agent import run_destination_agent, run_destination_agent_async
     from app.services.google_places import search_places, resolve_attraction_photo_url, PLACES_NEW_PHOTO_MEDIA_URL, DEFAULT_TIMEOUT
 except ImportError:
-    from agents.destination_agent import run_destination_agent
+    from agents.destination_agent import run_destination_agent, run_destination_agent_async
     from services.google_places import search_places, resolve_attraction_photo_url, PLACES_NEW_PHOTO_MEDIA_URL, DEFAULT_TIMEOUT
 
 router = APIRouter(prefix="/api", tags=["Destination Agent"])
@@ -51,7 +51,7 @@ def build_itinerary(destination: str, attractions: list, days: int) -> List[Dict
 
 
 @router.post("/destination", response_model=DestinationResponse, status_code=status.HTTP_200_OK)
-def get_destination_attractions(payload: DestinationRequest):
+async def get_destination_attractions(payload: DestinationRequest):
     """
     POST /api/destination
     Production endpoint to discover authentic tourist attractions for a destination.
@@ -64,7 +64,7 @@ def get_destination_attractions(payload: DestinationRequest):
         )
 
     try:
-        result = run_destination_agent(destination=payload.destination)
+        result = await run_destination_agent_async(destination=payload.destination)
         
         if not result.get("success") and result.get("status") == "error":
             raise HTTPException(
@@ -109,15 +109,10 @@ def get_attraction_photo(
 
     api_key = os.getenv("GOOGLE_MAPS_API_KEY", "").strip()
 
-    # 1. Google Places Photo Media endpoint resolution
+    # 1. Google Places Photo Media endpoint resolution (Instant Redirect, zero backend blocking)
     if target_photo and target_photo.startswith("places/") and api_key:
         media_url = f"https://places.googleapis.com/v1/{target_photo}/media?maxHeightPx=800&maxWidthPx=1200&key={api_key}"
-        try:
-            head_resp = requests.head(media_url, timeout=3)
-            if head_resp.status_code in [200, 301, 302, 307]:
-                return RedirectResponse(media_url, status_code=307)
-        except Exception:
-            pass
+        return RedirectResponse(media_url, status_code=307)
 
     # 2. Multi-tier photo fallback (Wikimedia HD / Category HD) if Google Media API is unfulfilled/exhausted
     place_title = name or "Tourist Spot"

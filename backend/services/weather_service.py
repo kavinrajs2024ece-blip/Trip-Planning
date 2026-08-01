@@ -1,8 +1,17 @@
 import os
 import logging
-import requests
+import asyncio
+import httpx
 from typing import Dict, Any, List
 from dotenv import load_dotenv
+
+try:
+    from services.cache_service import memory_cache
+except ImportError:
+    try:
+        from app.services.cache_service import memory_cache
+    except ImportError:
+        memory_cache = None
 
 load_dotenv()
 logger = logging.getLogger("weather_service")
@@ -11,9 +20,18 @@ class WeatherService:
     def __init__(self, api_key: str = None):
         self.api_key = api_key or os.getenv("OPENWEATHER_API_KEY", "").strip()
 
-    def get_weather_analysis(self, destination: str, days: int = 3) -> Dict[str, Any]:
+    async def get_weather_analysis_async(self, destination: str, days: int = 3) -> Dict[str, Any]:
+        """
+        Async weather analysis with httpx, 5s timeout (Requirement 8), and caching (Requirement 7).
+        """
         clean_dest = destination.strip() if destination else "Ooty"
-        
+        cache_key = f"weather:{clean_dest.lower()}:{days}"
+
+        if memory_cache:
+            cached_val = memory_cache.get(cache_key)
+            if cached_val:
+                return cached_val
+
         # Default climate profiles for common destinations
         dest_lower = clean_dest.lower()
         if any(term in dest_lower for term in ["ooty", "manali", "munnar", "shimla", "kodaikanal", "darjeeling"]):
@@ -46,19 +64,19 @@ class WeatherService:
                 "Carry water bottle and comfortable walking shoes."
             ]
 
-        # Attempt OpenWeather API call if key configured
+        # Attempt OpenWeather API call with 8-second timeout (Requirement 5)
         if self.api_key:
             try:
                 url = f"https://api.openweathermap.org/data/2.5/weather?q={clean_dest}&units=metric&appid={self.api_key}"
-                resp = requests.get(url, timeout=6)
-                if resp.status_code == 200:
-                    data = resp.json()
-                    base_temp = float(data.get("main", {}).get("temp", base_temp))
-                    cond = data.get("weather", [{}])[0].get("description", cond).title()
+                async with httpx.AsyncClient(timeout=httpx.Timeout(8.0)) as client:
+                    resp = await client.get(url)
+                    if resp.status_code == 200:
+                        data = resp.json()
+                        base_temp = float(data.get("main", {}).get("temp", base_temp))
+                        cond = data.get("weather", [{}])[0].get("description", cond).title()
             except Exception as e:
-                logger.warning(f"OpenWeather API exception: {e}")
+                logger.warning(f"OpenWeather API exception (8s timeout): {e}")
 
-        # Current weather metrics
         current = {
             "temperature": f"{round(base_temp, 1)}°C",
             "feels_like": f"{round(base_temp - 1.2, 1)}°C",
@@ -69,10 +87,10 @@ class WeatherService:
             "uv_index": uv,
             "sunrise": "06:12 AM",
             "sunset": "06:45 PM",
-            "air_quality": aqi
+            "air_quality": aqi,
+            "condition": cond
         }
 
-        # Build 4-slot forecast per day
         daily_forecasts: List[Dict[str, Any]] = []
         for d in range(1, days + 1):
             temp_var = (d % 2) - 1
@@ -86,10 +104,25 @@ class WeatherService:
                 }
             })
 
-        return {
+        res = {
             "status": "success",
             "destination": clean_dest,
             "current": current,
             "daily_forecast": daily_forecasts,
             "ai_suggestions": suggestions
         }
+
+        if memory_cache:
+            memory_cache.set(cache_key, res)
+
+        return res
+
+    def get_weather_analysis(self, destination: str, days: int = 3) -> Dict[str, Any]:
+        """Sync wrapper."""
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                return asyncio.run_coroutine_threadsafe(self.get_weather_analysis_async(destination, days), loop).result()
+            return loop.run_until_complete(self.get_weather_analysis_async(destination, days))
+        except Exception:
+            return asyncio.run(self.get_weather_analysis_async(destination, days))

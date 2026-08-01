@@ -438,6 +438,20 @@
               <p class="processing-subtitle">Our Multi-Agent AI System is analyzing your trip.</p>
             </div>
 
+            <!-- ERROR ALERT BANNER (RETRY WORKFLOW) -->
+            <div id="procErrorBanner" class="validation-alert-banner mt-3 mb-2" style="display: none; background: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.35); border-radius: 12px; padding: 14px 18px; align-items: center; justify-content: space-between; gap: 16px;">
+              <div class="d-flex align-items-center gap-3">
+                <i class="fa-solid fa-triangle-exclamation text-danger" style="font-size: 22px;"></i>
+                <div>
+                  <strong class="text-danger d-block" style="font-size: 14px;">Multi-Agent Pipeline Failed</strong>
+                  <span id="procErrorMessage" style="font-size: 12.5px; color: #cbd5e1;">An unexpected error occurred while executing AI agents.</span>
+                </div>
+              </div>
+              <button type="button" class="btn btn-sm btn-primary-gradient" id="btnProcRetry" style="flex-shrink: 0;">
+                <i class="fa-solid fa-rotate-right me-1"></i> Retry Workflow
+              </button>
+            </div>
+
             <!-- Large Circular Loading Animation -->
             <div class="circular-loader-wrapper mt-4">
               <div class="circular-loader-ring">

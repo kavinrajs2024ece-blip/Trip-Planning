@@ -27,6 +27,14 @@ document.addEventListener('DOMContentLoaded', () => {
     transportMapInstance: null
   };
 
+  function resolvePhotoSrc(url, fallbackUrl) {
+    const defaultFallback = fallbackUrl || 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=1200&auto=format&fit=crop&q=80';
+    if (!url) return defaultFallback;
+    if (url.startsWith('http://') || url.startsWith('https://')) return url;
+    if (url.startsWith('/')) return `http://127.0.0.1:8000${url}`;
+    return `http://127.0.0.1:8000/${url}`;
+  }
+
   /* ==========================================================================
      2. NAVIGATION ROUTER
      ========================================================================== */
@@ -74,6 +82,11 @@ document.addEventListener('DOMContentLoaded', () => {
     } else if (viewId === 'agent-budget') {
       renderBudgetAgentPage();
     } else if (viewId === 'controller') {
+      if (!currentState.activeTrip || !currentState.activeTrip.itinerary || currentState.activeTrip.itinerary.length === 0) {
+        console.warn('Trip Overview blocked: No completed trip plan found. Redirecting to New Trip Plan.');
+        switchView('new-plan');
+        return;
+      }
       renderTripOverviewPage();
     } else if (viewId === 'history') {
       renderHistoryGrid();
@@ -239,18 +252,33 @@ document.addEventListener('DOMContentLoaded', () => {
     const budget = parseInt(npBudgetInput?.value) || 50000;
     const travelers = parseInt(npTravelersInput?.value) || 2;
 
-    npGenerateBtn.disabled = true;
-    const origText = npGenerateBtn.innerHTML;
-    npGenerateBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Orchestrating Agents...`;
+    const params = {
+      destination,
+      days,
+      budget,
+      travelers,
+      travelStyle: selectedTravelStyle,
+      selectedInterests: [...selectedInterests]
+    };
+    currentState.lastRequestParams = params;
 
-    try {
-      await runMultiAgentPipeline(destination, days, budget, travelers, selectedTravelStyle, [...selectedInterests]);
-    } catch (err) {
-      console.error('Multi-Agent Pipeline Failure:', err);
-      showErrorAlert('Failed to generate trip plan. Please try again.');
-    } finally {
-      npGenerateBtn.disabled = false;
-      npGenerateBtn.innerHTML = origText;
+    // Requirement 1: Navigate immediately to AI Processing page. Do NOT navigate to Trip Overview.
+    switchView('processing');
+
+    // Requirement 6: Start orchestrator automatically
+    await runMultiAgentPipeline(destination, days, budget, travelers, selectedTravelStyle, [...selectedInterests]);
+  });
+
+  // Retry Workflow listener on processing page error banner
+  document.getElementById('btnProcRetry')?.addEventListener('click', async () => {
+    const errorBanner = document.getElementById('procErrorBanner');
+    if (errorBanner) errorBanner.style.display = 'none';
+
+    if (currentState.lastRequestParams) {
+      const p = currentState.lastRequestParams;
+      await runMultiAgentPipeline(p.destination, p.days, p.budget, p.travelers, p.travelStyle, p.selectedInterests);
+    } else {
+      switchView('new-plan');
     }
   });
 
@@ -271,7 +299,7 @@ document.addEventListener('DOMContentLoaded', () => {
     throw new Error(`Failed to reach ${endpoint}`);
   }
 
-  function updateProgress(cardId, stateId, pct, msg) {
+  function setProgress(pct, msg) {
     const progressBar = document.getElementById('procProgressBar');
     const progressPct = document.getElementById('procProgressPct');
     const statusText = document.getElementById('procStatusText');
@@ -280,17 +308,32 @@ document.addEventListener('DOMContentLoaded', () => {
     if (progressBar) progressBar.style.width = `${pct}%`;
     if (progressPct) progressPct.innerText = `${pct}%`;
 
+    const timeStr = new Date().toLocaleTimeString('en-US', { hour12: false });
+    if (msg) {
+      currentState.activityLogs.unshift(`[${timeStr}] ${msg}`);
+      if (currentState.activityLogs.length > 25) currentState.activityLogs.pop();
+      localStorage.setItem('aether_activity_logs', JSON.stringify(currentState.activityLogs));
+    }
+  }
+
+  function setAgentState(cardId, stateId, state, subText) {
     const card = document.getElementById(cardId);
     const stateEl = document.getElementById(stateId);
-    if (card) card.className = 'glass-card proc-agent-card completed';
-    if (stateEl) {
-      stateEl.innerHTML = `<span class="state-pill state-completed"><i class="fa-solid fa-circle-check"></i> Completed</span>`;
-    }
+    if (!card || !stateEl) return;
 
-    const timeStr = new Date().toLocaleTimeString('en-US', { hour12: false });
-    currentState.activityLogs.unshift(`[${timeStr}] ${msg}`);
-    if (currentState.activityLogs.length > 25) currentState.activityLogs.pop();
-    localStorage.setItem('aether_activity_logs', JSON.stringify(currentState.activityLogs));
+    if (state === 'running') {
+      card.className = 'glass-card proc-agent-card running';
+      stateEl.innerHTML = `<span class="state-pill state-running"><i class="fa-solid fa-spinner fa-spin"></i> Running</span>`;
+    } else if (state === 'completed') {
+      card.className = 'glass-card proc-agent-card completed';
+      stateEl.innerHTML = `<span class="state-pill state-completed"><i class="fa-solid fa-circle-check"></i> Completed</span>`;
+    } else if (state === 'failed') {
+      card.className = 'glass-card proc-agent-card failed';
+      stateEl.innerHTML = `<span class="state-pill state-failed"><i class="fa-solid fa-circle-xmark"></i> Failed</span>`;
+    } else {
+      card.className = 'glass-card proc-agent-card waiting';
+      stateEl.innerHTML = `<span class="state-pill state-waiting"><i class="fa-regular fa-clock"></i> Waiting</span>`;
+    }
   }
 
   function buildFallbackItinerary(destination, attractions, days) {
@@ -1502,10 +1545,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const reviewsTotal = (a.userRatingCount || a.user_ratings_total || 1250).toLocaleString();
             const categoryName = a.category || (a.types && a.types[0] ? a.types[0].replace(/_/g, ' ').toUpperCase() : 'TOURIST ATTRACTION');
             const mapsUrl = a.googleMapsUri || a.google_maps_url || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(a.name + ' ' + trip.name)}`;
-            const rawPhoto = a.photo_url || '';
-            const photoSrc = rawPhoto ? (rawPhoto.startsWith('http') ? rawPhoto : `http://127.0.0.1:8000${rawPhoto}`) : '';
             const travelPlaceholder = 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=1200&auto=format&fit=crop&q=80';
-            const displayImg = photoSrc || travelPlaceholder;
+            const displayImg = resolvePhotoSrc(a.photo_url, travelPlaceholder);
 
             return `
               <div class="card attraction-card-real">
@@ -1574,10 +1615,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const ratingVal = (attraction.rating || 4.8).toFixed(1);
     const reviewsTotal = (attraction.userRatingCount || attraction.user_ratings_total || 1250).toLocaleString();
     const mapsUrl = attraction.googleMapsUri || attraction.google_maps_url || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(attraction.name + ' ' + destName)}`;
-    const rawPhoto = attraction.photo_url || '';
-    const photoSrc = rawPhoto ? (rawPhoto.startsWith('http') ? rawPhoto : `http://127.0.0.1:8000${rawPhoto}`) : '';
     const travelPlaceholder = 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=1200&auto=format&fit=crop&q=80';
-    const displayImg = photoSrc || travelPlaceholder;
+    const displayImg = resolvePhotoSrc(attraction.photo_url, travelPlaceholder);
 
     body.innerHTML = `
       <div style="display:flex; flex-direction:column; gap:16px;">
@@ -1616,45 +1655,133 @@ document.addEventListener('DOMContentLoaded', () => {
      Order: Destination -> Budget -> Weather -> Transport -> Accommodation -> Itinerary
      ========================================================================== */
 
-  async function runMultiAgentPipeline(destination, days, budget, travelers, travelStyle, selectedInterests) {
+  async function runMultiAgentPipeline(destination, destination_days, budget, travelers, travelStyle, selectedInterests) {
+    const days = parseInt(destination_days) || 3;
     const fromLoc = "Chennai";
-    
-    // Switch view to Trip Overview
-    switchView('controller');
+
+    // Requirement 1: Navigate immediately to AI Processing view
+    switchView('processing');
+
+    // Hide error banner if previously visible
+    const errorBanner = document.getElementById('procErrorBanner');
+    if (errorBanner) errorBanner.style.display = 'none';
+
+    // Reset Progress Bar & Cards
+    setProgress(0, "Initializing Multi-Agent Controller...");
+    const tripIdTag = document.getElementById('procTripIdTag');
+    const generatedId = 'TRIP-' + Date.now().toString().slice(-6);
+    if (tripIdTag) tripIdTag.innerText = `Trip ID: ${generatedId}`;
+
+    setAgentState('proc-agent-controller', 'proc-state-controller', 'running');
+    setAgentState('proc-agent-dest', 'proc-state-dest', 'running');
+    setAgentState('proc-agent-budget', 'proc-state-budget', 'running');
+    setAgentState('proc-agent-weather', 'proc-state-weather', 'running');
+    setAgentState('proc-agent-transport', 'proc-state-transport', 'running');
+    setAgentState('proc-agent-hotel', 'proc-state-hotel', 'running');
+    setAgentState('proc-agent-itin', 'proc-state-itin', 'waiting');
 
     try {
-      // Step 1: Destination Agent
-      const destRes = await fetchAPI('/api/destination', { destination: destination, days: days });
+      // Requirement 1: Execute Destination, Budget, Weather, Transport, Accommodation agents concurrently
+      // Requirement 7: Show live progress (Destination 20%, Budget 40%, Weather 60%, Transport 80%, Accommodation 90%, Itinerary 100%)
+      // Requirement 8: Fault tolerant - if one agent fails or is slow, continue processing others
+
+      const destPromise = fetchAPI('/api/destination', { destination: destination, days: days })
+        .then(res => {
+          setAgentState('proc-agent-dest', 'proc-state-dest', 'completed');
+          setProgress(20, "Destination Agent completed (20%)");
+          return res;
+        })
+        .catch(err => {
+          console.warn("Destination Agent API call fallback:", err);
+          setAgentState('proc-agent-dest', 'proc-state-dest', 'failed');
+          setProgress(20, "Destination Agent fallback (20%)");
+          return { destination: destination, country: "India", places: [], attractions: [] };
+        });
+
+      const budgetPromise = fetchAPI('/api/budget', { budget: budget, days: days, travelers: travelers, travel_style: travelStyle })
+        .then(res => {
+          setAgentState('proc-agent-budget', 'proc-state-budget', 'completed');
+          setProgress(40, "Budget Agent completed (40%)");
+          return res;
+        })
+        .catch(err => {
+          console.warn("Budget Agent fallback:", err);
+          setAgentState('proc-agent-budget', 'proc-state-budget', 'failed');
+          setProgress(40, "Budget Agent fallback (40%)");
+          return null;
+        });
+
+      const weatherPromise = fetchAPI('/api/weather', { destination: destination, days: days })
+        .then(res => {
+          setAgentState('proc-agent-weather', 'proc-state-weather', 'completed');
+          setProgress(60, "Weather Agent completed (60%)");
+          return res;
+        })
+        .catch(err => {
+          console.warn("Weather Agent fallback:", err);
+          setAgentState('proc-agent-weather', 'proc-state-weather', 'failed');
+          setProgress(60, "Weather Agent fallback (60%)");
+          return getFallbackWeather(destination);
+        });
+
+      const transportPromise = fetchAPI('/api/transport', { from: fromLoc, destination: destination })
+        .then(res => {
+          setAgentState('proc-agent-transport', 'proc-state-transport', 'completed');
+          setProgress(80, "Transport Agent completed (80%)");
+          return res;
+        })
+        .catch(err => {
+          console.warn("Transport Agent fallback:", err);
+          setAgentState('proc-agent-transport', 'proc-state-transport', 'failed');
+          setProgress(80, "Transport Agent fallback (80%)");
+          return getFallbackTransport(fromLoc, destination);
+        });
+
+      const hotelPromise = fetchAPI('/api/accommodation', { destination: destination, budget: budget, travelers: travelers, days: days, travel_style: travelStyle })
+        .then(res => {
+          setAgentState('proc-agent-hotel', 'proc-state-hotel', 'completed');
+          setProgress(90, "Accommodation Agent completed (90%)");
+          return res;
+        })
+        .catch(err => {
+          console.warn("Accommodation Agent fallback:", err);
+          setAgentState('proc-agent-hotel', 'proc-state-hotel', 'failed');
+          setProgress(90, "Accommodation Agent fallback (90%)");
+          return { hotels: [] };
+        });
+
+      // Requirement 2: Only start the Itinerary Agent after the Destination Agent finishes
+      const destRes = await destPromise;
       const attractions = destRes.places || destRes.attractions || [];
 
-      // Step 2: Budget Agent
-      const budgetRes = await fetchAPI('/api/budget', { budget: budget, days: days, travelers: travelers, travel_style: travelStyle });
+      // Destination Agent finished -> start Itinerary Agent UI state
+      setAgentState('proc-agent-itin', 'proc-state-itin', 'running');
 
-      // Step 3: Weather Agent
-      const weatherRes = await fetchAPI('/api/weather', { destination: destination, days: days });
-      const weatherData = weatherRes.current ? weatherRes : getFallbackWeather(destination);
+      // Await remaining parallel agent responses
+      const [budgetRes, weatherRes, transportRes, hotelRes] = await Promise.all([
+        budgetPromise,
+        weatherPromise,
+        transportPromise,
+        hotelPromise
+      ]);
 
-      // Step 4: Transport Agent
-      const transportRes = await fetchAPI('/api/transport', { from: fromLoc, destination: destination });
-      const transportData = transportRes.options ? transportRes : getFallbackTransport(fromLoc, destination);
+      const weatherData = weatherRes && weatherRes.current ? weatherRes : getFallbackWeather(destination);
+      const transportData = transportRes && transportRes.options ? transportRes : getFallbackTransport(fromLoc, destination);
+      const hotels = (hotelRes && hotelRes.hotels) || [];
 
-      // Step 5: Accommodation Agent
-      const hotelRes = await fetchAPI('/api/accommodation', {
-        destination: destination,
-        budget: budget,
-        travelers: travelers,
-        days: days,
-        travel_style: travelStyle
-      });
-      const hotels = hotelRes.hotels || [];
+      // Step 3: Itinerary Agent Synthesis
+      let itinerary = destRes.itinerary;
+      if (!itinerary || itinerary.length === 0) {
+        itinerary = buildFallbackItinerary(destination, attractions, days);
+      }
 
-      // Step 6: Itinerary Agent
-      const itinerary = destRes.itinerary || buildFallbackItinerary(destination, attractions, days);
+      setAgentState('proc-agent-itin', 'proc-state-itin', 'completed');
+      setAgentState('proc-agent-controller', 'proc-state-controller', 'completed');
+      setProgress(100, "Itinerary Agent completed (100%). Redirecting to Trip Overview...");
 
-      // Final Assembly
-      const tripId = 'TRIP-' + Date.now().toString().slice(-6);
+      // Consolidate full trip plan
       const newTrip = {
-        id: tripId,
+        id: generatedId,
         name: destRes.destination || destination,
         country: destRes.country || 'India',
         fromLoc: fromLoc,
@@ -1686,12 +1813,20 @@ document.addEventListener('DOMContentLoaded', () => {
       localStorage.setItem('aether_active_trip', JSON.stringify(newTrip));
       localStorage.setItem('aether_saved_trips', JSON.stringify(currentState.savedTrips));
 
-      // Render 10 sections of Trip Overview
+      // Automatically navigate to Trip Overview ONLY after every agent has completed
+      await new Promise(r => setTimeout(r, 650));
+      switchView('controller');
       renderTripOverviewPage();
 
     } catch (err) {
       console.error('Multi-Agent Execution Pipeline Failure:', err);
-      showErrorAlert('An error occurred while fetching trip details. Please try again.');
+      // Requirement 4: Stay on AI Processing, display error message, allow retry
+      setAgentState('proc-agent-controller', 'proc-state-controller', 'failed');
+      const errBanner = document.getElementById('procErrorBanner');
+      const errMsg = document.getElementById('procErrorMessage');
+      if (errMsg) errMsg.innerText = err.message || 'An error occurred while generating your travel plan.';
+      if (errBanner) errBanner.style.display = 'flex';
+      setProgress(0, "Multi-Agent workflow paused due to error.");
     }
   }
 
@@ -1719,9 +1854,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const heroInterests = document.getElementById('ovHeroInterests');
     const heroWeatherBadge = document.getElementById('ovHeroWeatherBadge');
 
-    const heroImgUrl = trip.attractions && trip.attractions[0]?.photo_url
-      ? trip.attractions[0].photo_url
-      : 'https://images.unsplash.com/photo-1602216056096-3b40cc0c9944?auto=format&fit=crop&w=1200&q=80';
+    const heroImgUrl = resolvePhotoSrc(trip.attractions && trip.attractions[0]?.photo_url, 'https://images.unsplash.com/photo-1602216056096-3b40cc0c9944?auto=format&fit=crop&w=1200&q=80');
 
     if (heroBanner) {
       heroBanner.style.backgroundImage = `url('${heroImgUrl}')`;
@@ -1810,7 +1943,7 @@ document.addEventListener('DOMContentLoaded', () => {
       carousel.innerHTML = trip.attractions.map(attr => `
         <div class="attraction-carousel-card">
           <div class="acc-img-wrap">
-            <img class="acc-img" src="${attr.photo_url || 'https://images.unsplash.com/photo-1596178065887-1198b6148b2b?auto=format&fit=crop&w=600&q=80'}" alt="${attr.name}" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1596178065887-1198b6148b2b?auto=format&fit=crop&w=600&q=80';">
+            <img class="acc-img" src="${resolvePhotoSrc(attr.photo_url)}" alt="${attr.name}" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1596178065887-1198b6148b2b?auto=format&fit=crop&w=600&q=80';">
             <span class="acc-rating-pill">⭐ ${attr.rating ? attr.rating.toFixed(1) : '4.8'}</span>
           </div>
           <div class="acc-body">

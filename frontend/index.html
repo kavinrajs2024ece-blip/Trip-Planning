@@ -438,6 +438,20 @@
               <p class="processing-subtitle">Our Multi-Agent AI System is analyzing your trip.</p>
             </div>
 
+            <!-- ERROR ALERT BANNER (RETRY WORKFLOW) -->
+            <div id="procErrorBanner" class="validation-alert-banner mt-3 mb-2" style="display: none; background: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.35); border-radius: 12px; padding: 14px 18px; align-items: center; justify-content: space-between; gap: 16px;">
+              <div class="d-flex align-items-center gap-3">
+                <i class="fa-solid fa-triangle-exclamation text-danger" style="font-size: 22px;"></i>
+                <div>
+                  <strong class="text-danger d-block" style="font-size: 14px;">Multi-Agent Pipeline Failed</strong>
+                  <span id="procErrorMessage" style="font-size: 12.5px; color: #cbd5e1;">An unexpected error occurred while executing AI agents.</span>
+                </div>
+              </div>
+              <button type="button" class="btn btn-sm btn-primary-gradient" id="btnProcRetry" style="flex-shrink: 0;">
+                <i class="fa-solid fa-rotate-right me-1"></i> Retry Workflow
+              </button>
+            </div>
+
             <!-- Large Circular Loading Animation -->
             <div class="circular-loader-wrapper mt-4">
               <div class="circular-loader-ring">
@@ -499,7 +513,7 @@
               <div class="glass-card proc-agent-card waiting" id="proc-agent-budget">
                 <div class="proc-agent-header">
                   <div class="proc-agent-left">
-                    <span class="proc-agent-icon agent-color-budget"><i class="fa-solid fa-wallet"></i></span>
+                    <span class="agent-icon agent-color-budget"><i class="fa-solid fa-wallet"></i></span>
                     <div>
                       <h4 class="proc-agent-name">Budget Agent</h4>
                       <span class="proc-agent-sub">Cost Estimation &amp; INR Breakdown</span>
@@ -786,389 +800,162 @@
             </div>
           </div>
 
-          <!-- SECTION 2: QUICK TRIP SUMMARY (8 GLASSMORPHISM CARDS) -->
-          <div class="mb-4">
-            <div class="section-title-bar mb-3">
-              <h3 class="card-title"><i class="fa-solid fa-compass gradient-text"></i> Quick Trip Summary</h3>
-            </div>
-            <div class="summary-8grid" id="overviewQuickSummaryGrid">
-              <!-- 8 Glass Cards populated dynamically -->
-            </div>
+          <!-- SECTION 2: QUICK SUMMARY GRID -->
+          <div class="overview-quick-grid mb-4" id="overviewQuickSummaryGrid">
+            <!-- Populated dynamically -->
           </div>
 
-          <!-- SECTION 3: DESTINATION HIGHLIGHTS (HORIZONTAL CAROUSEL) -->
-          <div class="mb-4">
-            <div class="section-title-bar mb-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
-              <div>
-                <h3 class="card-title"><i class="fa-solid fa-mountain-city gradient-text"></i> Destination Highlights</h3>
-                <p class="card-desc" style="font-size: 13px; color: var(--text-secondary);">Top-rated tourist attractions verified via Google Places API</p>
-              </div>
-              <button class="btn btn-sm btn-glass nav-trigger" data-target="agent-destination">Explore All Attractions <i class="fa-solid fa-arrow-right"></i></button>
-            </div>
-            <div class="attractions-carousel" id="overviewAttractionsCarousel">
-              <!-- Horizontal scroll cards populated dynamically -->
-            </div>
-          </div>
-
-          <!-- SECTION 4: DAY WISE ITINERARY -->
-          <div class="mb-4">
-            <div class="section-title-bar mb-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
-              <div>
-                <h3 class="card-title"><i class="fa-solid fa-calendar-days gradient-text"></i> Day Wise Itinerary</h3>
-                <p class="card-desc" style="font-size: 13px; color: var(--text-secondary);">Day-by-day morning, afternoon, and evening schedule</p>
-              </div>
-              <button class="btn btn-sm btn-glass nav-trigger" data-target="agent-itinerary">Full Schedule <i class="fa-solid fa-arrow-right"></i></button>
-            </div>
-            <div class="day-itinerary-list" id="overviewDayItineraryContainer">
-              <!-- Timeline cards populated dynamically -->
-            </div>
-          </div>
-
-          <!-- SECTION 5 & SECTION 6 SPLIT -->
-          <div class="row g-4 mb-4">
-            <!-- SECTION 5: BUDGET BREAKDOWN -->
-            <div class="col-lg-6">
-              <div class="glass-card section-card h-100">
-                <div class="card-header-bar mb-3 d-flex justify-content-between align-items-center">
-                  <h3 class="card-title"><i class="fa-solid fa-chart-pie gradient-text"></i> Budget Breakdown</h3>
-                  <span class="badge-sub font-mono" id="ovBudgetTotalTag">₹ 50,000 INR</span>
-                </div>
-                <div class="budget-breakdown-body" id="overviewBudgetBreakdownContainer">
-                  <!-- Breakdown bars populated dynamically -->
-                </div>
-              </div>
-            </div>
-
-            <!-- SECTION 6: ACCOMMODATION STAYS -->
-            <div class="col-lg-6">
-              <div class="glass-card section-card h-100">
-                <div class="card-header-bar mb-3 d-flex justify-content-between align-items-center">
-                  <h3 class="card-title"><i class="fa-solid fa-hotel gradient-text"></i> Recommended Accommodation</h3>
-                  <button class="btn btn-sm btn-glass nav-trigger" data-target="agent-accommodation">All Hotels <i class="fa-solid fa-arrow-right"></i></button>
-                </div>
-                <div class="accommodation-list-mini" id="overviewAccommodationContainer">
-                  <!-- Hotel cards populated dynamically -->
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- SECTION 7 & SECTION 8 SPLIT -->
-          <div class="row g-4 mb-4">
-            <!-- SECTION 7: TRANSPORT OPTIONS -->
-            <div class="col-lg-6">
-              <div class="glass-card section-card h-100">
-                <div class="card-header-bar mb-3 d-flex justify-content-between align-items-center">
-                  <h3 class="card-title"><i class="fa-solid fa-plane-departure gradient-text"></i> Transport &amp; Transit</h3>
-                  <button class="btn btn-sm btn-glass nav-trigger" data-target="agent-transport">Details <i class="fa-solid fa-arrow-right"></i></button>
-                </div>
-                <div class="transport-list-mini" id="overviewTransportContainer">
-                  <!-- Transit cards populated dynamically -->
-                </div>
-              </div>
-            </div>
-
-            <!-- SECTION 8: WEATHER FORECAST -->
-            <div class="col-lg-6">
-              <div class="glass-card section-card h-100">
-                <div class="card-header-bar mb-3 d-flex justify-content-between align-items-center">
-                  <h3 class="card-title"><i class="fa-solid fa-cloud-sun-rain gradient-text"></i> Weather Forecast &amp; Advisory</h3>
-                  <button class="btn btn-sm btn-glass nav-trigger" data-target="agent-weather">Weather Hub <i class="fa-solid fa-arrow-right"></i></button>
-                </div>
-                <div class="weather-forecast-body" id="overviewWeatherForecastContainer">
-                  <!-- Forecast cards populated dynamically -->
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- SECTION 9: LOCAL RECOMMENDATIONS & TIPS -->
+          <!-- SECTION 3: DESTINATION HIGHLIGHTS CAROUSEL -->
           <div class="glass-card section-card mb-4">
             <div class="card-header-bar mb-3">
-              <h3 class="card-title"><i class="fa-solid fa-utensils gradient-text"></i> Local Recommendations &amp; Travel Tips</h3>
+              <div>
+                <h3 class="card-title"><i class="fa-solid fa-compass text-cyan"></i> Destination Highlights</h3>
+                <p class="card-desc">Hand-picked tourist landmarks discovered by Destination Agent</p>
+              </div>
             </div>
-            <div class="local-recs-grid" id="overviewLocalRecsContainer">
-              <!-- Cards for Dining, Shopping, Safety populated dynamically -->
+            <div class="overview-attractions-carousel" id="overviewAttractionsCarousel">
+              <!-- Populated dynamically -->
             </div>
           </div>
 
-          <!-- SECTION 10: ACTION BUTTONS BAR -->
-          <div class="overview-trip-action-bar">
-            <button class="btn btn-glass" onclick="window.print()">
-              <i class="fa-solid fa-file-pdf text-rose"></i> Export PDF
-            </button>
-            <button class="btn btn-glass" onclick="downloadTripJSON()">
-              <i class="fa-solid fa-download text-cyan"></i> Download Itinerary
-            </button>
-            <button class="btn btn-glass" onclick="shareTripPlan()">
-              <i class="fa-solid fa-share-nodes text-purple"></i> Share Trip
-            </button>
-            <a class="btn btn-glass text-decoration-none" id="ovOpenMapsBtn" href="https://maps.google.com" target="_blank">
-              <i class="fa-solid fa-map-location-dot text-emerald"></i> Open in Maps
+          <!-- SECTION 4: DAY-WISE ITINERARY ACCORDION -->
+          <div class="glass-card section-card mb-4">
+            <div class="card-header-bar mb-3">
+              <div>
+                <h3 class="card-title"><i class="fa-solid fa-calendar-days text-purple"></i> Day-Wise Itinerary Schedule</h3>
+                <p class="card-desc">Synthesized by Itinerary Agent with morning, afternoon & evening activities</p>
+              </div>
+            </div>
+            <div id="overviewDayItineraryContainer">
+              <!-- Populated dynamically -->
+            </div>
+          </div>
+
+          <!-- SECTION 5 & 6: HOTELS & TRANSPORT DUAL GRID -->
+          <div class="form-grid-2 mb-4">
+            <div class="glass-card section-card">
+              <div class="card-header-bar mb-3">
+                <h3 class="card-title"><i class="fa-solid fa-hotel text-pink"></i> Hotel Selection</h3>
+              </div>
+              <div id="overviewHotelsContainer">
+                <!-- Populated dynamically -->
+              </div>
+            </div>
+
+            <div class="glass-card section-card">
+              <div class="card-header-bar mb-3">
+                <h3 class="card-title"><i class="fa-solid fa-plane-departure text-indigo"></i> Transit & Transport</h3>
+              </div>
+              <div id="overviewTransportContainer">
+                <!-- Populated dynamically -->
+              </div>
+            </div>
+          </div>
+
+          <!-- SECTION 7 & 8: WEATHER & LOCAL TIPS -->
+          <div class="form-grid-2 mb-4">
+            <div class="glass-card section-card">
+              <div class="card-header-bar mb-3">
+                <h3 class="card-title"><i class="fa-solid fa-cloud-sun text-amber"></i> Climate Forecast</h3>
+              </div>
+              <div id="overviewWeatherForecastContainer" class="d-flex gap-2">
+                <!-- Populated dynamically -->
+              </div>
+            </div>
+
+            <div class="glass-card section-card">
+              <div class="card-header-bar mb-3">
+                <h3 class="card-title"><i class="fa-solid fa-lightbulb text-emerald"></i> Local Recommendations</h3>
+              </div>
+              <div id="overviewLocalRecsContainer">
+                <!-- Populated dynamically -->
+              </div>
+            </div>
+          </div>
+
+          <!-- BOTTOM ACTION BAR -->
+          <div class="glass-card section-card d-flex justify-content-between align-items-center flex-wrap gap-3">
+            <div class="d-flex gap-2">
+              <button class="btn btn-sm btn-primary-gradient" onclick="window.downloadTripJSON()">
+                <i class="fa-solid fa-download me-1"></i> Export Itinerary JSON
+              </button>
+              <button class="btn btn-sm btn-glass text-cyan" onclick="window.shareTripPlan()">
+                <i class="fa-solid fa-share-nodes me-1"></i> Share Trip
+              </button>
+            </div>
+            <a href="#" id="ovOpenMapsBtn" target="_blank" class="btn btn-sm btn-glass text-decoration-none">
+              <i class="fa-solid fa-map-location-dot me-1 text-cyan"></i> View All Spots on Google Maps
             </a>
-            <button class="btn btn-glass nav-trigger" data-target="new-plan">
-              <i class="fa-solid fa-pen-to-square text-amber"></i> Edit Trip
-            </button>
-            <button class="btn btn-primary-gradient nav-trigger" data-target="new-plan">
-              <i class="fa-solid fa-plus"></i> Create Another Trip
-            </button>
           </div>
-
         </section>
-
 
         <!-- 3. DESTINATION AGENT PAGE -->
         <section class="app-view" id="view-agent-destination">
-          <div class="view-header">
-            <div>
-              <div class="agent-hero-badge dest-badge"><i class="fa-solid fa-compass"></i> SPECIALIZED AGENT #1</div>
-              <h1 class="view-title">Destination Agent</h1>
-              <p class="view-subtitle">Finds tourist attractions & destination analysis based on user preferences.</p>
-            </div>
-          </div>
-
-          <div id="destAgentPageContainer">
-            <!-- Dynamically populated -->
-          </div>
+          <div id="destAgentPageContainer"></div>
         </section>
 
-
-        <!-- 4. BUDGET AGENT PAGE -->
-        <section class="app-view" id="view-agent-budget">
-          <div class="view-header">
-            <div>
-              <div class="agent-hero-badge budget-badge"><i class="fa-solid fa-wallet"></i> SPECIALIZED AGENT #2</div>
-              <h1 class="view-title">Budget Agent</h1>
-              <p class="view-subtitle">Calculates cost estimations in ₹ INR.</p>
-            </div>
-          </div>
-
-          <div id="budgetAgentPageContainer">
-            <!-- Dynamically populated -->
-          </div>
-        </section>
-
-
-        <!-- 5. ITINERARY AGENT PAGE -->
-        <section class="app-view" id="view-agent-itinerary">
-          <div class="view-header">
-            <div>
-              <div class="agent-hero-badge itin-badge"><i class="fa-solid fa-calendar-days"></i> SPECIALIZED AGENT #3</div>
-              <h1 class="view-title">Itinerary Agent</h1>
-              <p class="view-subtitle">Creates day-wise travel schedule with <strong>100% unique non-repeating locations</strong>.</p>
-            </div>
-          </div>
-
-          <div id="itinAgentPageContainer">
-            <!-- Dynamically populated -->
-          </div>
-        </section>
-
-
-        <!-- 6. WEATHER AGENT PAGE -->
-        <section class="app-view" id="view-agent-weather">
-          <div class="view-header">
-            <div>
-              <div class="agent-hero-badge weather-badge"><i class="fa-solid fa-cloud-sun"></i> SPECIALIZED AGENT #4</div>
-              <h1 class="view-title">Weather Agent</h1>
-              <p class="view-subtitle">Provides weather forecast & climate advisory for your trip.</p>
-            </div>
-          </div>
-
-          <div id="weatherAgentPageContainer">
-            <!-- Dynamically populated -->
-          </div>
-        </section>
-
-
-        <!-- 7. TRANSPORT AGENT PAGE -->
-        <section class="app-view" id="view-agent-transport">
-          <div class="view-header">
-            <div>
-              <div class="agent-hero-badge transport-badge"><i class="fa-solid fa-plane-departure"></i> SPECIALIZED AGENT #5</div>
-              <h1 class="view-title">Transport Agent</h1>
-              <p class="view-subtitle">Finds best transport options for your selected route.</p>
-            </div>
-          </div>
-
-          <div id="transportAgentPageContainer">
-            <!-- Dynamically populated -->
-          </div>
-        </section>
-
-
-        <!-- 8. ACCOMMODATION AGENT PAGE -->
+        <!-- 4. ACCOMMODATION AGENT PAGE -->
         <section class="app-view" id="view-agent-accommodation">
-          <div class="view-header">
-            <div>
-              <div class="agent-hero-badge hotel-badge"><i class="fa-solid fa-hotel"></i> SPECIALIZED AGENT #6</div>
-              <h1 class="view-title">Accommodation Agent</h1>
-              <p class="view-subtitle">Suggests hotel recommendations for your destination.</p>
-            </div>
-          </div>
-
-          <div id="hotelAgentPageContainer">
-            <!-- Dynamically populated -->
-          </div>
+          <div id="hotelAgentPageContainer"></div>
         </section>
 
+        <!-- 5. WEATHER AGENT PAGE -->
+        <section class="app-view" id="view-agent-weather">
+          <div id="weatherAgentPageContainer"></div>
+        </section>
 
-        <!-- 9. TRIP HISTORY VIEW -->
+        <!-- 6. TRANSPORT AGENT PAGE -->
+        <section class="app-view" id="view-agent-transport">
+          <div id="transportAgentPageContainer"></div>
+        </section>
+
+        <!-- 7. ITINERARY AGENT PAGE -->
+        <section class="app-view" id="view-agent-itinerary">
+          <div id="itinAgentPageContainer"></div>
+        </section>
+
+        <!-- 8. BUDGET AGENT PAGE -->
+        <section class="app-view" id="view-agent-budget">
+          <div id="budgetAgentPageContainer"></div>
+        </section>
+
+        <!-- 9. TRIP HISTORY PAGE -->
         <section class="app-view" id="view-history">
           <div class="view-header">
-            <div>
-              <h1 class="view-title">Trip History & Saved Itineraries</h1>
-              <p class="view-subtitle">Review or export your generated travel plans.</p>
-            </div>
-            <button class="btn btn-sm btn-glass" id="clearAllHistoryBtn"><i class="fa-solid fa-trash-can"></i> Clear History</button>
+            <h1 class="view-title">Trip History</h1>
+            <p class="view-subtitle">Access your previously generated multi-agent AI trips.</p>
           </div>
-
-          <div class="history-grid" id="historyGridContainer">
-            <!-- Dynamically populated -->
-          </div>
+          <div id="historyGridContainer"></div>
         </section>
 
-
-        <!-- 10. SETTINGS VIEW -->
+        <!-- 10. SETTINGS PAGE -->
         <section class="app-view" id="view-settings">
           <div class="view-header">
-            <div>
-              <h1 class="view-title">System Settings & Agent Config</h1>
-              <p class="view-subtitle">Tune AI agent parameters and system preferences.</p>
-            </div>
+            <h1 class="view-title">Settings</h1>
+            <p class="view-subtitle">System configuration & AI agent parameters.</p>
           </div>
-
-          <div class="settings-sections-grid">
-            <div class="glass-card section-card">
-              <div class="card-header-bar">
-                <h3 class="card-title"><i class="fa-solid fa-brain"></i> Neural AI Model Backend</h3>
-              </div>
-              <div class="settings-form">
-                <div class="form-group">
-                  <label>Primary Orchestrator Engine</label>
-                  <select class="form-control">
-                    <option selected>Google Gemini 1.5 Pro (Recommended)</option>
-                    <option>OpenAI GPT-4o (Omni)</option>
-                    <option>Anthropic Claude 3.5 Sonnet</option>
-                  </select>
-                </div>
-                <div class="form-group">
-                  <label>Strict Non-Repeating Location Constraint</label>
-                  <div class="toggle-switch-wrapper">
-                    <input type="checkbox" id="strictLocationToggle" checked>
-                    <label for="strictLocationToggle">Enforce 100% Unique Places per Day</label>
-                  </div>
-                </div>
-              </div>
+          <div class="glass-card p-4">
+            <h3 class="card-title mb-3">API Keys & Engine Settings</h3>
+            <div class="form-group mb-3">
+              <label class="form-label-compact">Google Places API Key</label>
+              <input type="password" class="form-control-compact" value="••••••••••••••••••••••••" readonly>
             </div>
-
-            <div class="glass-card section-card">
-              <div class="card-header-bar">
-                <h3 class="card-title"><i class="fa-solid fa-sliders"></i> Default User Preferences</h3>
-              </div>
-              <div class="settings-form">
-                <div class="form-group">
-                  <label>Theme Preference</label>
-                  <select class="form-control" id="settingsThemeSelect">
-                    <option value="dark">Dark Space Glassmorphism (Default)</option>
-                    <option value="light">Light Premium Glass</option>
-                  </select>
-                </div>
-              </div>
+            <div class="form-group mb-3">
+              <label class="form-label-compact">OpenWeather API Key</label>
+              <input type="password" class="form-control-compact" value="••••••••••••••••••••••••" readonly>
             </div>
           </div>
         </section>
 
       </div>
     </main>
+
   </div>
 
-  <!-- FULL-SCREEN AGENT LOADING OVERLAY WITH WORKFLOW ANIMATION -->
-  <div class="full-screen-loader-backdrop" id="fullScreenAgentLoader">
-    <div class="loader-modal-glass">
-      <div class="loader-top-header">
-        <div class="loader-brand-logo">
-          <i class="fa-solid fa-brain-circuit"></i>
-          <span>Multi-Agent AI Controller Processing</span>
-        </div>
-        <span class="loader-pct-pill font-mono" id="fsProgressPct">0%</span>
-      </div>
-
-      <!-- Main Loader Step Flow Diagram -->
-      <div class="loader-workflow-pipeline">
-        <div class="pipeline-node node-user-step active" id="node-fs-user">
-          <i class="fa-solid fa-user"></i>
-          <span>User Input</span>
-        </div>
-
-        <div class="pipeline-connector"><div class="connector-line"></div></div>
-
-        <div class="pipeline-node node-controller-step" id="node-fs-ctrl">
-          <i class="fa-solid fa-brain-circuit"></i>
-          <span>Controller</span>
-        </div>
-
-        <div class="pipeline-connector"><div class="connector-line"></div></div>
-
-        <div class="pipeline-node" id="node-fs-dest">
-          <i class="fa-solid fa-compass agent-color-dest"></i>
-          <span>Destination</span>
-        </div>
-
-        <div class="pipeline-connector"><div class="connector-line"></div></div>
-
-        <div class="pipeline-node" id="node-fs-budget">
-          <i class="fa-solid fa-wallet agent-color-budget"></i>
-          <span>Budget</span>
-        </div>
-
-        <div class="pipeline-connector"><div class="connector-line"></div></div>
-
-        <div class="pipeline-node" id="node-fs-weather">
-          <i class="fa-solid fa-cloud-sun agent-color-weather"></i>
-          <span>Weather</span>
-        </div>
-
-        <div class="pipeline-connector"><div class="connector-line"></div></div>
-
-        <div class="pipeline-node" id="node-fs-transport">
-          <i class="fa-solid fa-plane-departure agent-color-transport"></i>
-          <span>Transport</span>
-        </div>
-
-        <div class="pipeline-connector"><div class="connector-line"></div></div>
-
-        <div class="pipeline-node" id="node-fs-hotel">
-          <i class="fa-solid fa-hotel agent-color-hotel"></i>
-          <span>Hotel</span>
-        </div>
-
-        <div class="pipeline-connector"><div class="connector-line"></div></div>
-
-        <div class="pipeline-node" id="node-fs-itin">
-          <i class="fa-solid fa-calendar-days agent-color-itin"></i>
-          <span>Itinerary</span>
-        </div>
-      </div>
-
-      <!-- Progress Fill Bar -->
-      <div class="fs-progress-track mt-4">
-        <div class="fs-progress-fill" id="fsProgressBar" style="width: 0%;"></div>
-      </div>
-
-      <!-- Streaming Message Banner -->
-      <div class="fs-message-banner mt-3 font-mono">
-        <i class="fa-solid fa-spinner fa-spin text-cyan"></i>
-        <span id="fsStatusMsg">Initializing neural agent framework...</span>
-      </div>
-    </div>
-  </div>
-
-  <!-- Leaflet JS for Maps -->
+  <!-- Leaflet Map JS -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-  <!-- Chart.js -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <!-- Main Application Script -->
+  
+  <!-- Main App JavaScript -->
   <script src="app.js"></script>
 </body>
 </html>

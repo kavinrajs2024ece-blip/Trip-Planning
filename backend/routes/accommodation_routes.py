@@ -1,18 +1,17 @@
 from fastapi import APIRouter, HTTPException, status
 from schemas.accommodation_schema import AccommodationRequest, AccommodationResponse
-from agents.accommodation_agent import run_accommodation_agent
+from agents.accommodation_agent import run_accommodation_agent_async
 
 router = APIRouter(prefix="/api", tags=["Accommodation Agent"])
 
 @router.post("/accommodation", response_model=AccommodationResponse, status_code=status.HTTP_200_OK)
-def get_accommodations(payload: AccommodationRequest):
+async def get_accommodations(payload: AccommodationRequest):
     """
     POST /api/accommodation
-    Accepts destination, budget, travelers, days, and travel_style,
-    and returns real hotel listings from Google Places API sorted by rating, reviews, and distance.
+    Async endpoint returning hotel listings from Google Places API.
     """
     try:
-        res = run_accommodation_agent(
+        res = await run_accommodation_agent_async(
             destination=payload.destination,
             budget=payload.budget or 50000,
             travelers=payload.travelers or 2,

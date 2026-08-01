@@ -6,12 +6,13 @@ authentic tourist attractions for a given destination using live Google Places A
 """
 
 import logging
+import asyncio
 from typing import Dict, List, Any, Optional
 
 try:
-    from app.services.google_places import geocode_destination, search_places, search_tourist_attractions
+    from app.services.google_places import async_geocode_destination, async_search_places, geocode_destination, search_places
 except ImportError:
-    from services.google_places import geocode_destination, search_places, search_tourist_attractions
+    from services.google_places import async_geocode_destination, async_search_places, geocode_destination, search_places
 
 logger = logging.getLogger("destination_agent")
 logging.basicConfig(level=logging.INFO)
@@ -39,8 +40,8 @@ def _extract_country(formatted_address: str, fallback_dest: str) -> str:
     return "India"
 
 
-def run_destination_agent(destination: str, limit: int = 10) -> Dict[str, Any]:
-    """Executes the Destination Agent workflow for a given destination."""
+async def run_destination_agent_async(destination: str, limit: int = 10) -> Dict[str, Any]:
+    """Async execution of Destination Agent workflow."""
     if not destination or not isinstance(destination, str) or not destination.strip():
         logger.warning("Destination Agent received empty or invalid destination input.")
         return {
@@ -57,51 +58,82 @@ def run_destination_agent(destination: str, limit: int = 10) -> Dict[str, Any]:
     clean_dest = destination.strip().title()
     logger.info(f"Destination Agent starting analysis for: '{clean_dest}'")
 
-    geo_info = geocode_destination(clean_dest)
-    formatted_address = geo_info.get("formatted_address", clean_dest) if geo_info.get("status") == "success" else clean_dest
-    country = _extract_country(formatted_address, clean_dest)
+    try:
+        geo_info, places_response = await asyncio.gather(
+            async_geocode_destination(clean_dest),
+            async_search_places(clean_dest),
+            return_exceptions=True
+        )
 
-    places_response = search_places(clean_dest)
+        if isinstance(geo_info, Exception):
+            geo_info = {"status": "error", "formatted_address": clean_dest}
+        if isinstance(places_response, Exception):
+            places_response = {"success": False, "status": "error", "message": str(places_response)}
 
-    if not places_response.get("success") or places_response.get("status") in ["empty", "error"] or not places_response.get("places"):
-        error_detail = places_response.get("message", "No matching places found.")
-        logger.warning(f"No Google Places results for '{clean_dest}': {error_detail}")
+        formatted_address = geo_info.get("formatted_address", clean_dest) if geo_info.get("status") == "success" else clean_dest
+        country = _extract_country(formatted_address, clean_dest)
+
+        if not places_response.get("success") or places_response.get("status") in ["empty", "error"] or not places_response.get("places"):
+            error_detail = places_response.get("message", "No matching places found.")
+            logger.warning(f"No Google Places results for '{clean_dest}': {error_detail}")
+            return {
+                "success": False,
+                "status": places_response.get("status", "empty"),
+                "destination": clean_dest,
+                "country": country,
+                "total_attractions": 0,
+                "places": [],
+                "attractions": [],
+                "message": error_detail
+            }
+
+        raw_places = places_response.get("places", [])
+        top_attractions = raw_places[:limit]
+
+        logger.info(f"Destination Agent successfully processed {len(top_attractions)} top attractions for '{clean_dest}' ({country}).")
+
         return {
-            "success": False,
-            "status": places_response.get("status", "empty"),
+            "success": True,
+            "status": "success",
             "destination": clean_dest,
             "country": country,
+            "total_attractions": len(top_attractions),
+            "places": top_attractions,
+            "attractions": top_attractions
+        }
+    except Exception as exc:
+        logger.error(f"Destination Agent exception: {exc}")
+        return {
+            "success": False,
+            "status": "error",
+            "destination": clean_dest,
+            "country": "India",
             "total_attractions": 0,
             "places": [],
             "attractions": [],
-            "message": error_detail
+            "message": f"Destination Agent error: {str(exc)}"
         }
 
-    raw_places = places_response.get("places", [])
-    top_attractions = raw_places[:limit]
 
-    logger.info(f"Destination Agent successfully processed {len(top_attractions)} top attractions for '{clean_dest}' ({country}).")
-
-    return {
-        "success": True,
-        "status": "success",
-        "destination": clean_dest,
-        "country": country,
-        "total_attractions": len(top_attractions),
-        "places": top_attractions,
-        "attractions": top_attractions
-    }
+def run_destination_agent(destination: str, limit: int = 10) -> Dict[str, Any]:
+    """Sync wrapper for run_destination_agent."""
+    try:
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            return asyncio.run_coroutine_threadsafe(run_destination_agent_async(destination, limit), loop).result()
+        return loop.run_until_complete(run_destination_agent_async(destination, limit))
+    except Exception:
+        return asyncio.run(run_destination_agent_async(destination, limit))
 
 
-def generate_destination(destination: str, limit: int = 10) -> Dict[str, Any]:
-    """Alias for run_destination_agent."""
-    return run_destination_agent(destination=destination, limit=limit)
-
-
+generate_destination = run_destination_agent
 analyze_destination = run_destination_agent
 
 
 class DestinationAgent:
     """Class wrapper for Destination Agent for Controller orchestration."""
+    async def run_async(self, destination: str, limit: int = 10) -> Dict[str, Any]:
+        return await run_destination_agent_async(destination=destination, limit=limit)
+
     def run(self, destination: str, limit: int = 10) -> Dict[str, Any]:
         return run_destination_agent(destination=destination, limit=limit)

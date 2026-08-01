@@ -23,6 +23,7 @@ class AttractionItem(BaseModel):
     place_id: Optional[str] = ""
     photo_reference: Optional[str] = ""
     photo_url: Optional[str] = ""
+    image_source: Optional[str] = "google"
     category: Optional[str] = "Tourist Attraction"
     types: Optional[List[str]] = []
     googleMapsUri: Optional[str] = ""

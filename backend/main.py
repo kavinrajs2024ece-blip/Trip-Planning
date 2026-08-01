@@ -1,7 +1,11 @@
 import os
+import sys
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
+
+# Ensure backend directory is always in sys.path for relative imports
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 # Load environment variables
 load_dotenv()

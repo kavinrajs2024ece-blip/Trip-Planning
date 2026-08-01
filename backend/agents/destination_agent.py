@@ -7,6 +7,7 @@ for flexible import paths across the backend architecture.
 
 from app.agents.destination_agent import (
     run_destination_agent,
+    run_destination_agent_async,
     generate_destination,
     analyze_destination,
     DestinationAgent
@@ -14,6 +15,7 @@ from app.agents.destination_agent import (
 
 __all__ = [
     "run_destination_agent",
+    "run_destination_agent_async",
     "generate_destination",
     "analyze_destination",
     "DestinationAgent"
