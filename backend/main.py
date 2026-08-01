@@ -19,20 +19,28 @@ from routes.transport_routes import router as transport_router
 from routes.budget_routes import router as budget_router
 from routes.dashboard_routes import router as dashboard_router
 
-app = FastAPI(
-    title="Travel Planning AI Backend",
-    description="Multi-Agent AI Travel Planning System API",
-    version="1.0.0"
-)
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
-# Enable CORS for frontend integration
+app = FastAPI()
+
+origins = [
+    "http://localhost:3000",
+    "http://localhost:5173",
+    "https://trip-planning-2kd1-git-main-kavinrajs2024ece-1646s-projects.vercel.app",
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Your routes...
+# Enable CORS for frontend integration
+
 
 # Mount Routers
 app.include_router(trip_router)
