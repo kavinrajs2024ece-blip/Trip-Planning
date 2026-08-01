@@ -310,8 +310,7 @@ document.addEventListener('DOMContentLoaded', () => {
       switchView('new-plan');
     }
   });
-
-  async function fetchGETAPI(endpoint) {
+  async function fetchAPI(endpoint, bodyData) {
     const apiHosts =
       (window.location.hostname === "localhost" ||
         window.location.hostname === "127.0.0.1")
@@ -322,13 +321,26 @@ document.addEventListener('DOMContentLoaded', () => {
         : [
           "https://trip-planning-api-r531.onrender.com"
         ];
+
     for (const host of apiHosts) {
       try {
-        const resp = await fetch(`${host}${endpoint}`);
-        if (resp.ok) return await resp.json();
-      } catch (e) { }
+        const resp = await fetch(`${host}${endpoint}`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify(bodyData)
+        });
+
+        if (resp.ok) {
+          return await resp.json();
+        }
+      } catch (e) {
+        console.error(e);
+      }
     }
-    throw new Error(`Failed to fetch GET ${endpoint}`);
+
+    throw new Error(`Failed to reach ${endpoint}`);
   }
 
   async function fetchAPI(endpoint, bodyData) {
