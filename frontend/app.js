@@ -15,6 +15,12 @@ document.addEventListener('DOMContentLoaded', () => {
      1. GLOBAL APP STATE
      ========================================================================== */
 
+  const API_BASE =
+    window.location.hostname === "localhost" ||
+    window.location.hostname === "127.0.0.1"
+      ? "http://127.0.0.1:8000"
+      : "https://trip-planning-api-r531.onrender.com";
+
   let currentState = {
     activeView: 'dashboard',
     theme: 'dark',
@@ -32,9 +38,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const defaultFallback = fallbackUrl || 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=1200&auto=format&fit=crop&q=80';
     if (!url) return defaultFallback;
     if (url.startsWith('http://') || url.startsWith('https://')) return url;
-    const origin = (window.location.port === '3000' || window.location.port === '5500') ? 'http://127.0.0.1:8000' : window.location.origin;
-    if (url.startsWith('/')) return `${origin}${url}`;
-    return `${origin}/${url}`;
+    if (url.startsWith('/')) return `${API_BASE}${url}`;
+    return `${API_BASE}/${url}`;
   }
 
   /* ==========================================================================
@@ -312,33 +317,23 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   async function fetchGETAPI(endpoint) {
-    const apiHosts = (window.location.port === '3000' || window.location.port === '5500')
-      ? ['http://127.0.0.1:8000', 'http://localhost:8000', '']
-      : ['', window.location.origin];
-    for (const host of apiHosts) {
-      try {
-        const resp = await fetch(`${host}${endpoint}`);
-        if (resp.ok) return await resp.json();
-      } catch (e) {}
+    const resp = await fetch(`${API_BASE}${endpoint}`);
+    if (!resp.ok) {
+      throw new Error(`Failed to fetch GET ${endpoint}: ${resp.statusText}`);
     }
-    throw new Error(`Failed to fetch GET ${endpoint}`);
+    return await resp.json();
   }
 
   async function fetchAPI(endpoint, bodyData) {
-    const apiHosts = (window.location.port === '3000' || window.location.port === '5500')
-      ? ['http://127.0.0.1:8000', 'http://localhost:8000', '']
-      : ['', window.location.origin];
-    for (const host of apiHosts) {
-      try {
-        const resp = await fetch(`${host}${endpoint}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(bodyData)
-        });
-        if (resp.ok) return await resp.json();
-      } catch (e) {}
+    const resp = await fetch(`${API_BASE}${endpoint}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(bodyData)
+    });
+    if (!resp.ok) {
+      throw new Error(`Failed to reach ${endpoint}: ${resp.statusText}`);
     }
-    throw new Error(`Failed to reach ${endpoint}`);
+    return await resp.json();
   }
 
   function setProgress(pct, msg) {
