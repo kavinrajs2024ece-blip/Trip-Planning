@@ -65,7 +65,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   async function switchView(viewId) {
     currentState.activeView = viewId;
-    
+
     navItems.forEach(item => {
       if (item.getAttribute('data-view') === viewId) {
         item.classList.add('active');
@@ -117,7 +117,7 @@ document.addEventListener('DOMContentLoaded', () => {
       try {
         const trips = await fetchGETAPI('/api/trip/list');
         if (trips && Array.isArray(trips)) currentState.savedTrips = trips;
-      } catch (e) {}
+      } catch (e) { }
       renderHistoryGrid();
     }
 
@@ -312,14 +312,21 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   async function fetchGETAPI(endpoint) {
-    const apiHosts = (window.location.port === '3000' || window.location.port === '5500')
-      ? ['http://127.0.0.1:8000', 'http://localhost:8000', '']
-      : ['', window.location.origin];
+    const apiHosts =
+      (window.location.hostname === "localhost" ||
+        window.location.hostname === "127.0.0.1")
+        ? [
+          "http://127.0.0.1:8000",
+          "http://localhost:8000"
+        ]
+        : [
+          "https://trip-planning-api-r531.onrender.com"
+        ];
     for (const host of apiHosts) {
       try {
         const resp = await fetch(`${host}${endpoint}`);
         if (resp.ok) return await resp.json();
-      } catch (e) {}
+      } catch (e) { }
     }
     throw new Error(`Failed to fetch GET ${endpoint}`);
   }
@@ -336,7 +343,7 @@ document.addEventListener('DOMContentLoaded', () => {
           body: JSON.stringify(bodyData)
         });
         if (resp.ok) return await resp.json();
-      } catch (e) {}
+      } catch (e) { }
     }
     throw new Error(`Failed to reach ${endpoint}`);
   }
@@ -747,14 +754,14 @@ document.addEventListener('DOMContentLoaded', () => {
           </div>
 
           ${daily.map(dayItem => {
-            const slots = dayItem.slots || {};
-            return `
+      const slots = dayItem.slots || {};
+      return `
               <div class="day-forecast-wrapper mb-4">
                 <h4 style="font-size:16px; font-weight:800; color:var(--color-primary); margin-bottom:12px;">Day ${dayItem.day} Weather Breakdown</h4>
                 <div class="weather-slot-grid">
                   ${['morning', 'afternoon', 'evening', 'night'].map(period => {
-                    const slot = slots[period] || {};
-                    return `
+        const slot = slots[period] || {};
+        return `
                       <div class="weather-metric-tile" style="background: rgba(255,255,255,0.02); text-align:left; padding:14px;">
                         <div class="text-uppercase text-cyan font-mono" style="font-size:11px; font-weight:700;">${period} (${slot.time || ''})</div>
                         <div style="font-size:18px; font-weight:800; color:#fff; margin:4px 0;"><i class="fa-solid ${slot.icon || 'fa-sun'} text-gold me-1"></i> ${slot.temp || '20°C'}</div>
@@ -762,11 +769,11 @@ document.addEventListener('DOMContentLoaded', () => {
                         <div style="font-size:11px; color:#94a3b8; margin-top:4px;">Rain Prob: ${slot.rain_prob || '10%'}</div>
                       </div>
                     `;
-                  }).join('')}
+      }).join('')}
                 </div>
               </div>
             `;
-          }).join('')}
+    }).join('')}
         </div>
 
       </div>
@@ -1202,11 +1209,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
           <div class="budget-categories-grid">
             ${categories.map(cat => {
-              const rem = cat.alloc - cat.spent;
-              const pct = cat.alloc > 0 ? Math.min(100, Math.round((cat.spent / cat.alloc) * 100)) : 0;
-              const barColor = pct > 100 ? '#ef4444' : (pct > 80 ? '#f59e0b' : '#00f2fe');
+      const rem = cat.alloc - cat.spent;
+      const pct = cat.alloc > 0 ? Math.min(100, Math.round((cat.spent / cat.alloc) * 100)) : 0;
+      const barColor = pct > 100 ? '#ef4444' : (pct > 80 ? '#f59e0b' : '#00f2fe');
 
-              return `
+      return `
                 <div class="budget-category-card">
                   <div class="cat-header">
                     <div class="cat-title">${cat.name}</div>
@@ -1233,7 +1240,7 @@ document.addEventListener('DOMContentLoaded', () => {
                   </div>
                 </div>
               `;
-            }).join('')}
+    }).join('')}
           </div>
         </div>
 
@@ -1260,7 +1267,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <label style="font-size:11.5px; color:#94a3b8;" class="fw-bold">Switch Hotel Choice:</label>
                 <select id="impactHotelSelect" class="form-control-compact mt-1">
                   ${trip.hotels.map(h => `
-                    <option value="${h.name}" ${selectedHotel && selectedHotel.name === h.name ? 'selected' : ''}>${h.name} - ₹${(h.price_per_night || Math.round(allocHotel/days)).toLocaleString()}/night</option>
+                    <option value="${h.name}" ${selectedHotel && selectedHotel.name === h.name ? 'selected' : ''}>${h.name} - ₹${(h.price_per_night || Math.round(allocHotel / days)).toLocaleString()}/night</option>
                   `).join('')}
                 </select>
               </div>
@@ -1582,14 +1589,14 @@ document.addEventListener('DOMContentLoaded', () => {
         <!-- ATTRACTIONS GRID -->
         <div class="attractions-grid-container">
           ${(trip.places || trip.attractions || []).map(a => {
-            const ratingVal = (a.rating || 4.8).toFixed(1);
-            const reviewsTotal = (a.userRatingCount || a.user_ratings_total || 1250).toLocaleString();
-            const categoryName = a.category || (a.types && a.types[0] ? a.types[0].replace(/_/g, ' ').toUpperCase() : 'TOURIST ATTRACTION');
-            const mapsUrl = a.googleMapsUri || a.google_maps_url || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(a.name + ' ' + trip.name)}`;
-            const travelPlaceholder = 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=1200&auto=format&fit=crop&q=80';
-            const displayImg = resolvePhotoSrc(a.photo_url, travelPlaceholder);
+      const ratingVal = (a.rating || 4.8).toFixed(1);
+      const reviewsTotal = (a.userRatingCount || a.user_ratings_total || 1250).toLocaleString();
+      const categoryName = a.category || (a.types && a.types[0] ? a.types[0].replace(/_/g, ' ').toUpperCase() : 'TOURIST ATTRACTION');
+      const mapsUrl = a.googleMapsUri || a.google_maps_url || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(a.name + ' ' + trip.name)}`;
+      const travelPlaceholder = 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=1200&auto=format&fit=crop&q=80';
+      const displayImg = resolvePhotoSrc(a.photo_url, travelPlaceholder);
 
-            return `
+      return `
               <div class="card attraction-card-real">
                 <div class="attraction-img-wrapper">
                   <img src="${displayImg}" class="attraction-img" alt="${a.name}" loading="lazy" onerror="this.onerror=null; this.src='${travelPlaceholder}';">
@@ -1615,7 +1622,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
               </div>
             `;
-          }).join('')}
+    }).join('')}
         </div>
       </div>
 
@@ -2144,7 +2151,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  window.downloadTripJSON = function() {
+  window.downloadTripJSON = function () {
     const trip = currentState.activeTrip;
     if (!trip) return;
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(trip, null, 2));
@@ -2156,7 +2163,7 @@ document.addEventListener('DOMContentLoaded', () => {
     downloadAnchor.remove();
   };
 
-  window.shareTripPlan = function() {
+  window.shareTripPlan = function () {
     const trip = currentState.activeTrip;
     if (!trip) return;
     if (navigator.share) {
@@ -2164,7 +2171,7 @@ document.addEventListener('DOMContentLoaded', () => {
         title: `Trip to ${trip.name}`,
         text: `Check out my ${trip.days}-day AI generated trip to ${trip.name}!`,
         url: window.location.href,
-      }).catch(() => {});
+      }).catch(() => { });
     } else {
       navigator.clipboard.writeText(window.location.href);
       alert('Trip itinerary link copied to clipboard!');
