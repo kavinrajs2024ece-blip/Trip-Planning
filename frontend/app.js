@@ -18,11 +18,12 @@ document.addEventListener('DOMContentLoaded', () => {
   let currentState = {
     activeView: 'dashboard',
     theme: 'dark',
-    activeTrip: JSON.parse(localStorage.getItem('aether_active_trip') || 'null'),
-    savedTrips: JSON.parse(localStorage.getItem('aether_saved_trips') || '[]'),
-    favoriteHotels: JSON.parse(localStorage.getItem('aether_favorite_hotels') || '[]'),
-    activityLogs: JSON.parse(localStorage.getItem('aether_activity_logs') || '[]'),
+    activeTrip: null,
+    savedTrips: [],
+    favoriteHotels: [],
+    activityLogs: [],
     compareList: [],
+    dashboardData: null,
     leafletMapInstance: null,
     transportMapInstance: null
   };
@@ -31,8 +32,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const defaultFallback = fallbackUrl || 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=1200&auto=format&fit=crop&q=80';
     if (!url) return defaultFallback;
     if (url.startsWith('http://') || url.startsWith('https://')) return url;
-    if (url.startsWith('/')) return `http://127.0.0.1:8000${url}`;
-    return `http://127.0.0.1:8000/${url}`;
+    const origin = (window.location.port === '3000' || window.location.port === '5500') ? 'http://127.0.0.1:8000' : window.location.origin;
+    if (url.startsWith('/')) return `${origin}${url}`;
+    return `${origin}/${url}`;
   }
 
   /* ==========================================================================
@@ -46,7 +48,22 @@ document.addEventListener('DOMContentLoaded', () => {
   const navItems = document.querySelectorAll('.nav-item');
   const appViews = document.querySelectorAll('.app-view');
 
-  function switchView(viewId) {
+  async function loadBackendState() {
+    try {
+      const data = await fetchGETAPI('/api/dashboard');
+      if (data && data.status === 'success') {
+        currentState.dashboardData = data;
+        currentState.activeTrip = data.active_trip || null;
+        currentState.savedTrips = data.recent_trips || [];
+        currentState.favoriteHotels = data.favorite_hotels || [];
+        currentState.activityLogs = data.activity_logs || [];
+      }
+    } catch (e) {
+      console.warn("Backend data load fallback:", e);
+    }
+  }
+
+  async function switchView(viewId) {
     currentState.activeView = viewId;
     
     navItems.forEach(item => {
@@ -68,20 +85,28 @@ document.addEventListener('DOMContentLoaded', () => {
     sidebar?.classList.remove('mobile-open');
 
     if (viewId === 'dashboard') {
+      await loadBackendState();
       renderDashboard();
     } else if (viewId === 'agent-destination') {
+      if (!currentState.activeTrip) await loadBackendState();
       renderDestinationAgentPage();
     } else if (viewId === 'agent-accommodation') {
+      if (!currentState.activeTrip) await loadBackendState();
       renderAccommodationAgentPage();
     } else if (viewId === 'agent-weather') {
+      if (!currentState.activeTrip) await loadBackendState();
       renderWeatherAgentPage();
     } else if (viewId === 'agent-transport') {
+      if (!currentState.activeTrip) await loadBackendState();
       renderTransportAgentPage();
     } else if (viewId === 'agent-itinerary') {
+      if (!currentState.activeTrip) await loadBackendState();
       renderItineraryAgentPage();
     } else if (viewId === 'agent-budget') {
+      if (!currentState.activeTrip) await loadBackendState();
       renderBudgetAgentPage();
     } else if (viewId === 'controller') {
+      if (!currentState.activeTrip) await loadBackendState();
       if (!currentState.activeTrip || !currentState.activeTrip.itinerary || currentState.activeTrip.itinerary.length === 0) {
         console.warn('Trip Overview blocked: No completed trip plan found. Redirecting to New Trip Plan.');
         switchView('new-plan');
@@ -89,6 +114,10 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       renderTripOverviewPage();
     } else if (viewId === 'history') {
+      try {
+        const trips = await fetchGETAPI('/api/trip/list');
+        if (trips && Array.isArray(trips)) currentState.savedTrips = trips;
+      } catch (e) {}
       renderHistoryGrid();
     }
 
@@ -282,8 +311,23 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  async function fetchGETAPI(endpoint) {
+    const apiHosts = (window.location.port === '3000' || window.location.port === '5500')
+      ? ['http://127.0.0.1:8000', 'http://localhost:8000', '']
+      : ['', window.location.origin];
+    for (const host of apiHosts) {
+      try {
+        const resp = await fetch(`${host}${endpoint}`);
+        if (resp.ok) return await resp.json();
+      } catch (e) {}
+    }
+    throw new Error(`Failed to fetch GET ${endpoint}`);
+  }
+
   async function fetchAPI(endpoint, bodyData) {
-    const apiHosts = ['http://127.0.0.1:8000', 'http://localhost:8000', ''];
+    const apiHosts = (window.location.port === '3000' || window.location.port === '5500')
+      ? ['http://127.0.0.1:8000', 'http://localhost:8000', '']
+      : ['', window.location.origin];
     for (const host of apiHosts) {
       try {
         const resp = await fetch(`${host}${endpoint}`, {
@@ -292,9 +336,7 @@ document.addEventListener('DOMContentLoaded', () => {
           body: JSON.stringify(bodyData)
         });
         if (resp.ok) return await resp.json();
-      } catch (e) {
-        // try next host
-      }
+      } catch (e) {}
     }
     throw new Error(`Failed to reach ${endpoint}`);
   }
@@ -312,7 +354,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (msg) {
       currentState.activityLogs.unshift(`[${timeStr}] ${msg}`);
       if (currentState.activityLogs.length > 25) currentState.activityLogs.pop();
-      localStorage.setItem('aether_activity_logs', JSON.stringify(currentState.activityLogs));
     }
   }
 
@@ -582,7 +623,6 @@ document.addEventListener('DOMContentLoaded', () => {
           currentState.favoriteHotels.push(id);
           btn.classList.add('active');
         }
-        localStorage.setItem('aether_favorite_hotels', JSON.stringify(currentState.favoriteHotels));
       });
     });
 
@@ -807,104 +847,176 @@ document.addEventListener('DOMContentLoaded', () => {
           </div>
         </div>
 
-        <!-- LEAFLET INTERACTIVE ROUTE MAP -->
+        <!-- INTERACTIVE LEAFLET ROUTE POLYLINE MAP -->
         <div class="glass-card section-card mb-4">
           <div class="card-header-bar mb-3">
-            <h3 class="card-title"><i class="fa-solid fa-map-location-dot text-cyan"></i> Interactive Transit Route Map</h3>
+            <h3 class="card-title"><i class="fa-solid fa-map-location-dot gradient-text"></i> Interactive Transit Route Polyline Map</h3>
           </div>
-          <div id="transportMapContainer" style="height: 380px; width:100%; border-radius:12px; overflow:hidden;"></div>
+          <div id="transportRouteMapContainer"></div>
         </div>
 
       </div>
     `;
 
-    // Initialize Leaflet Transport Map
     setTimeout(() => {
-      if (currentState.transportMapInstance) {
-        currentState.transportMapInstance.remove();
-        currentState.transportMapInstance = null;
-      }
-      const mapContainer = document.getElementById('transportMapContainer');
-      if (mapContainer && typeof L !== 'undefined') {
-        const fromCoords = [13.0827, 80.2707]; // Chennai
-        const destCoords = [trip.lat || 11.4102, trip.lng || 76.6950]; // Destination Coords
+      initTransportRouteMap(t);
+    }, 100);
+  }
 
-        const map = L.map('transportMapContainer').setView(fromCoords, 7);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-          maxZoom: 18,
-          attribution: '© OpenStreetMap'
-        }).addTo(map);
+  function initTransportRouteMap(transportData) {
+    const mapContainer = document.getElementById('transportRouteMapContainer');
+    if (!mapContainer || typeof L === 'undefined') return;
 
-        L.marker(fromCoords).addTo(map).bindPopup(`<b>Origin: ${t.from}</b>`).openPopup();
-        L.marker(destCoords).addTo(map).bindPopup(`<b>Destination: ${trip.name}</b>`);
+    if (currentState.transportMapInstance) {
+      currentState.transportMapInstance.remove();
+      currentState.transportMapInstance = null;
+    }
 
-        const polyline = L.polyline([fromCoords, destCoords], { color: '#00f2fe', weight: 4, opacity: 0.8, dashArray: '8, 8' }).addTo(map);
-        map.fitBounds(polyline.getBounds(), { padding: [40, 40] });
+    const points = transportData.polyline_points || [[13.0827, 80.2707], [11.4102, 76.6950]];
+    const map = L.map('transportRouteMapContainer').setView(points[0], 7);
+    currentState.transportMapInstance = map;
 
-        currentState.transportMapInstance = map;
-      }
-    }, 150);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; OpenStreetMap'
+    }).addTo(map);
+
+    const polyline = L.polyline(points, { color: '#00f2fe', weight: 5, opacity: 0.8 }).addTo(map);
+    L.marker(points[0]).bindPopup(`<b>Origin:</b> ${transportData.from}`).addTo(map);
+    L.marker(points[points.length - 1]).bindPopup(`<b>Destination:</b> ${transportData.destination}`).addTo(map);
+
+    map.fitBounds(polyline.getBounds().pad(0.2));
   }
 
   /* ==========================================================================
-     8. ITINERARY AGENT PAGE (TIMELINE + ACCORDION + EXPORT TO CALENDAR)
+     8. CONSOLIDATED FINAL DASHBOARD
      ========================================================================== */
+
+  function renderDashboard() {
+    const totalTripsEl = document.getElementById('dashTotalTrips');
+    const totalBudgetEl = document.getElementById('dashTotalBudget');
+    const tripsCompletedEl = document.getElementById('dashTripsCompleted');
+    const activeTripBanner = document.getElementById('dashActiveTripBanner');
+
+    const dash = currentState.dashboardData;
+    const savedTrips = dash ? dash.recent_trips : currentState.savedTrips;
+    const totalTripsCount = dash ? dash.total_trips_planned : savedTrips.length;
+    if (totalTripsEl) totalTripsEl.innerText = totalTripsCount;
+    if (tripsCompletedEl) tripsCompletedEl.innerText = totalTripsCount;
+
+    const trip = currentState.activeTrip;
+    const totalAllocatedBudget = dash ? dash.total_budget_allocated : (trip ? trip.budget : 0);
+    if (totalBudgetEl) totalBudgetEl.innerText = `₹${Number(totalAllocatedBudget).toLocaleString()}`;
+
+    if (activeTripBanner) {
+      if (trip) {
+        activeTripBanner.style.display = 'block';
+        activeTripBanner.innerHTML = `
+          <div class="glass-card active-trip-banner-card fade-in mb-4">
+            <div class="card-header-bar mb-3">
+              <div>
+                <span class="badge-sub text-emerald"><i class="fa-solid fa-circle-check"></i> Master Multi-Agent Travel Plan</span>
+                <h2 style="font-size: 26px; font-weight: 800; margin-top: 4px;">${trip.name}, ${trip.country}</h2>
+                <span style="font-size: 13px; color: #cbd5e1;">${trip.days} Days • Style: ${trip.travelStyle} • Budget: ₹${trip.budget.toLocaleString()} • ${trip.attractions?.length || 0} Attractions • ${trip.hotels?.length || 0} Hotels</span>
+              </div>
+              <button class="btn btn-primary-gradient nav-trigger" data-target="agent-destination">
+                <i class="fa-solid fa-compass"></i> Explore Destination
+              </button>
+            </div>
+
+            <!-- DASHBOARD MULTI-CARD CONSOLIDATED GRID -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px;" class="mt-3">
+              
+              <!-- 1. Top Hotels Preview -->
+              <div class="glass-card p-3" style="background: rgba(255,255,255,0.03);">
+                <h4 style="font-size:15px; font-weight:800; color:#fff;"><i class="fa-solid fa-hotel text-cyan me-2"></i> Top Hotel Recommendation</h4>
+                ${trip.hotels && trip.hotels.length > 0 ? `
+                  <div style="font-size:13px; font-weight:700; color:var(--color-primary);" class="mt-2">${trip.hotels[0].name}</div>
+                  <div style="font-size:12px; color:#cbd5e1;">${trip.hotels[0].rating} ★ (${trip.hotels[0].user_ratings_total} reviews)</div>
+                  <div style="font-size:11px; color:#94a3b8;">${trip.hotels[0].address}</div>
+                ` : '<div class="text-muted">No hotel data</div>'}
+              </div>
+
+              <!-- 2. Weather Advisory Preview -->
+              <div class="glass-card p-3" style="background: rgba(255,255,255,0.03);">
+                <h4 style="font-size:15px; font-weight:800; color:#fff;"><i class="fa-solid fa-cloud-sun text-gold me-2"></i> Weather Overview</h4>
+                ${trip.weatherData?.current ? `
+                  <div style="font-size:13px; font-weight:700; color:#fff;" class="mt-2">Temp: ${trip.weatherData.current.temperature} (${trip.weatherData.current.uv_index})</div>
+                  <div style="font-size:12px; color:#cbd5e1;">AQI: ${trip.weatherData.current.air_quality}</div>
+                ` : '<div class="text-muted">No weather data</div>'}
+              </div>
+
+              <!-- 3. Transport Summary -->
+              <div class="glass-card p-3" style="background: rgba(255,255,255,0.03);">
+                <h4 style="font-size:15px; font-weight:800; color:#fff;"><i class="fa-solid fa-plane-departure text-purple me-2"></i> Transit Route</h4>
+                ${trip.transportData ? `
+                  <div style="font-size:13px; font-weight:700; color:#fff;" class="mt-2">${trip.transportData.from} → ${trip.name}</div>
+                  <div style="font-size:12px; color:#cbd5e1;">${trip.transportData.distance_km} km • ${trip.transportData.estimated_duration}</div>
+                ` : '<div class="text-muted">No transport data</div>'}
+              </div>
+
+              <!-- 4. Emergency & Tips -->
+              <div class="glass-card p-3" style="background: rgba(255,255,255,0.03);">
+                <h4 style="font-size:15px; font-weight:800; color:#fff;"><i class="fa-solid fa-shield-halved text-emerald me-2"></i> Emergency Contacts</h4>
+                <div style="font-size:12px; color:#cbd5e1;" class="mt-2">Police: <strong>100</strong> • Ambulance: <strong>108</strong></div>
+                <div style="font-size:12px; color:#cbd5e1;">Tourist Helpline: <strong>1363</strong></div>
+              </div>
+
+            </div>
+
+          </div>
+        `;
+      } else {
+        activeTripBanner.style.display = 'none';
+      }
+    }
+
+    bindNavTriggers();
+  }
+
+  function renderEmptyState(container, agentName) {
+    if (!container) return;
+    container.innerHTML = `
+      <div class="glass-card section-card text-center py-5 fade-in">
+        <i class="fa-solid fa-folder-open text-muted" style="font-size:40px;"></i>
+        <h3 class="mt-3" style="font-size:20px; font-weight:800;">No ${agentName} Data Available</h3>
+        <p class="text-muted">Submit a trip request using the New Trip Plan form.</p>
+        <button class="btn btn-primary-gradient btn-lg nav-trigger mt-2" data-target="new-plan">
+          <i class="fa-solid fa-plus"></i> Create New Trip
+        </button>
+      </div>
+    `;
+    bindNavTriggers();
+  }
 
   function renderItineraryAgentPage() {
     const container = document.getElementById('itinAgentPageContainer');
     const trip = currentState.activeTrip;
-
-    if (!trip || !trip.itinerary || trip.itinerary.length === 0) {
-      renderEmptyState(container, 'Itinerary Agent');
-      return;
-    }
+    if (!trip || !trip.itinerary) { renderEmptyState(container, 'Itinerary Agent'); return; }
 
     container.innerHTML = `
-      <div class="itinerary-section-wrapper fade-in">
-        
-        <div class="glass-card section-card mb-4">
-          <div class="card-header-bar">
-            <div>
-              <span class="badge-sub text-emerald"><i class="fa-solid fa-calendar-days"></i> AI Synthesized Day-Wise Schedule</span>
-              <h2 style="font-size: 24px; font-weight: 800; margin-top: 6px;">Day-Wise Itinerary for ${trip.name}</h2>
-              <p class="card-desc">${trip.days} Days • Complete daily breakdown with morning, afternoon & evening spots</p>
-            </div>
-            <button class="btn btn-primary-gradient btn-sm" onclick="window.exportCalendarICS()">
-              <i class="fa-solid fa-calendar-plus"></i> Export to Calendar (.ics)
-            </button>
-          </div>
-        </div>
-
-        <div id="itinDaysContainer">
-          ${trip.itinerary.map(dayPlan => `
-            <div class="glass-card section-card mb-4">
-              <h3 style="font-size: 18px; font-weight: 800; color: var(--color-primary);" class="mb-3">
-                <i class="fa-solid fa-sun text-gold me-2"></i> Day ${dayPlan.day} - ${dayPlan.destination || trip.name}
-              </h3>
-              
-              <div class="timeline-container">
-                ${(dayPlan.places || []).map(p => `
-                  <div class="timeline-item">
-                    <span class="timeline-time">${p.time || '10:00 AM'}</span>
-                    <h4 class="timeline-title">${p.name}</h4>
-                    <div style="font-size: 12px; color: #94a3b8; margin: 4px 0;">
-                      <i class="fa-solid fa-star text-gold"></i> ${p.rating || 4.5} ★ • <i class="fa-solid fa-location-dot text-cyan"></i> ${p.address || p.vicinity || trip.name}
-                    </div>
-                    <p style="font-size: 13px; color: #cbd5e1; margin-top: 4px;">${p.description || 'Authentic local landmark with breathtaking views and photo spots.'}</p>
-                  </div>
-                `).join('')}
+      <div class="glass-card section-card fade-in">
+        <h3 class="card-title mb-3"><i class="fa-solid fa-calendar-days text-cyan"></i> Day-Wise Itinerary for ${trip.name}</h3>
+        ${trip.itinerary.map(d => `
+          <div class="day-timeline-card mb-3">
+            <h4>Day ${d.day}</h4>
+            <div>${(d.places || []).map(p => `
+              <div class="timeline-item-row mt-2">
+                <div class="timeline-time-col">${p.time || '09:00 AM'}</div>
+                <div class="timeline-content-col">
+                  <strong>${p.name}</strong> (${p.rating || 4.5} ★)
+                  <div style="font-size:12px; color:#cbd5e1;">${p.address || trip.name}</div>
+                </div>
               </div>
-            </div>
-          `).join('')}
-        </div>
-
+            `).join('')}</div>
+          </div>
+        `).join('')}
       </div>
     `;
   }
 
-  /* ==========================================================================
-     9. BUDGET AGENT PAGE (COST BREAKDOWN + CHART + CURRENCY CONVERTER + BUDGET TRACKER)
-     ========================================================================== */
+  let budgetDonutChartInstance = null;
+  let budgetBarChartInstance = null;
 
   function renderBudgetAgentPage() {
     const container = document.getElementById('budgetAgentPageContainer');
@@ -916,119 +1028,535 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     const budget = trip.budget || 50000;
-    const selectedHotelCost = trip.selectedHotel ? (trip.selectedHotel.price_per_night || 4500) * trip.days : Math.round(budget * 0.40);
-    const transportCost = Math.round(budget * 0.25);
-    const foodCost = Math.round(budget * 0.20);
-    const ticketsCost = Math.round(budget * 0.15);
-    const totalEst = selectedHotelCost + transportCost + foodCost + ticketsCost;
-    const isOverBudget = totalEst > budget;
+    const days = trip.days || 3;
+    const travelers = trip.travelers || 2;
+    const travelStyle = trip.travelStyle || 'Standard';
+
+    // 1. Hotel Calculations
+    const selectedHotel = trip.selectedHotel || (trip.hotels && trip.hotels.length > 0 ? trip.hotels[0] : null);
+    const hotelEstNightRate = selectedHotel ? (selectedHotel.price_per_night || Math.round((budget * 0.40) / days)) : Math.round((budget * 0.40) / days);
+    const hotelSubtotal = hotelEstNightRate * days;
+    const hotelTax = Math.round(hotelSubtotal * 0.18); // 18% GST
+    const hotelGrandTotal = hotelSubtotal + hotelTax;
+    const allocHotel = Math.round(budget * 0.40);
+
+    // 2. Transport Calculations
+    const selectedTransport = trip.selectedTransport || (trip.transportData && trip.transportData.options ? trip.transportData.options[0] : null);
+    const transportBaseCost = selectedTransport ? (parseCost(selectedTransport.estimated_cost) || Math.round(budget * 0.25)) : Math.round(budget * 0.25);
+    const fuelCost = selectedTransport && selectedTransport.fuel_estimate ? (parseCost(selectedTransport.fuel_estimate) || 1200) : 0;
+    const tollsCost = 450;
+    const transportGrandTotal = transportBaseCost + fuelCost + tollsCost;
+    const allocTransport = Math.round(budget * 0.25);
+
+    // 3. Food Calculations
+    const dailyFoodRate = travelStyle === 'Luxury' ? 1500 : (travelStyle === 'Budget' ? 450 : 800);
+    const foodTotal = dailyFoodRate * days * travelers;
+    const allocFood = Math.round(budget * 0.20);
+
+    // 4. Attraction Tickets & Activities
+    const ticketsPerPerson = 1200;
+    const ticketsTotal = ticketsPerPerson * travelers;
+    const allocTickets = Math.round(budget * 0.10);
+
+    // 5. Shopping & Misc
+    const shoppingTotal = trip.customShopping !== undefined ? trip.customShopping : Math.round(budget * 0.03 * 0.7);
+    const allocShopping = Math.round(budget * 0.03);
+
+    const miscTotal = trip.customMisc !== undefined ? trip.customMisc : Math.round(budget * 0.02 * 0.5);
+    const allocMisc = Math.round(budget * 0.02);
+
+    // Totals
+    const totalSpent = hotelGrandTotal + transportGrandTotal + foodTotal + ticketsTotal + shoppingTotal + miscTotal;
+    const remainingBudget = budget - totalSpent;
+    const pctSpent = Math.round((totalSpent / budget) * 100);
+
+    // Health Status
+    let healthStatusClass = 'healthy';
+    let healthStatusLabel = '<i class="fa-solid fa-circle-check"></i> 🟢 Budget Healthy';
+    if (pctSpent > 100) {
+      healthStatusClass = 'exceeded';
+      healthStatusLabel = '<i class="fa-solid fa-triangle-exclamation"></i> 🔴 Budget Exceeded';
+    } else if (pctSpent > 80) {
+      healthStatusClass = 'warning';
+      healthStatusLabel = '<i class="fa-solid fa-triangle-exclamation"></i> 🟠 Approaching Budget Limit';
+    }
+
+    const categories = [
+      { name: '🏨 Accommodation', key: 'hotel', alloc: allocHotel, spent: hotelGrandTotal },
+      { name: '🚗 Transport', key: 'transport', alloc: allocTransport, spent: transportGrandTotal },
+      { name: '🍽 Food', key: 'food', alloc: allocFood, spent: foodTotal },
+      { name: '🎫 Attraction Tickets', key: 'tickets', alloc: allocTickets, spent: ticketsTotal },
+      { name: '🛍 Shopping', key: 'shopping', alloc: allocShopping, spent: shoppingTotal },
+      { name: '📦 Miscellaneous', key: 'misc', alloc: allocMisc, spent: miscTotal }
+    ];
 
     container.innerHTML = `
-      <div class="budget-section-wrapper fade-in">
+      <div class="budget-dashboard-wrapper fade-in">
         
-        <!-- TOP BUDGET METRICS BANNER -->
+        <!-- HEADER STATUS BANNER -->
         <div class="glass-card section-card mb-4">
           <div class="card-header-bar">
             <div>
-              <span class="badge-sub text-emerald"><i class="fa-solid fa-wallet"></i> Live Budget Tracker</span>
-              <h2 style="font-size: 24px; font-weight: 800; margin-top: 6px;">Budget Analysis for ${trip.name}</h2>
-              <p class="card-desc">Target Budget: <strong>₹${budget.toLocaleString()} INR</strong> • Travelers: <strong>${trip.travelers}</strong></p>
+              <span class="badge-sub text-emerald"><i class="fa-solid fa-brain"></i> AI Finance Engine</span>
+              <h2 style="font-size: 26px; font-weight: 800; margin-top: 6px;">AI Budget Tracker &amp; Financial Dashboard</h2>
+              <p class="card-desc">Live expense tracking, real-time cost calculation, and smart AI financial advisories for ${trip.name}</p>
             </div>
-            <div class="text-end">
-              <span style="font-size:12px; color:#cbd5e1;">Est. Total Spent</span>
-              <div style="font-size: 22px; font-weight: 800; color: ${isOverBudget ? '#ef4444' : '#10b981'};">
-                ₹${totalEst.toLocaleString()} INR
-              </div>
+            
+            <div class="d-flex align-items-center gap-3">
+              <span class="budget-status-pill ${healthStatusClass}">
+                ${healthStatusLabel}
+              </span>
+              <button class="btn btn-sm btn-glass" id="btnExportPDF" title="Export PDF"><i class="fa-solid fa-file-pdf text-red me-1"></i> PDF</button>
+              <button class="btn btn-sm btn-glass" id="btnExportCSV" title="Export CSV"><i class="fa-solid fa-file-excel text-emerald me-1"></i> Excel</button>
+              <button class="btn btn-sm btn-glass" id="btnPrintBudget" title="Print"><i class="fa-solid fa-print me-1"></i> Print</button>
             </div>
           </div>
         </div>
 
-        <!-- BUDGET PROGRESS BAR OVERVIEW -->
-        <div class="glass-card section-card mb-4">
-          <div class="d-flex justify-content-between font-mono mb-2" style="font-size: 13px;">
-            <span>Budget Spent: ₹${totalEst.toLocaleString()} / ₹${budget.toLocaleString()}</span>
-            <span style="color: ${isOverBudget ? '#ef4444' : '#00f2fe'};">${Math.round((totalEst / budget) * 100)}% Allocated</span>
-          </div>
-          <div class="proc-progress-bar-track">
-            <div class="proc-progress-bar-fill" style="width: ${Math.min(100, Math.round((totalEst / budget) * 100))}%; background: ${isOverBudget ? '#ef4444' : 'linear-gradient(90deg, #00f2fe, #4facfe)'};"></div>
-          </div>
-        </div>
-
-        <!-- DUAL COLUMN: BREAKDOWN & CURRENCY CONVERTER -->
-        <div class="form-grid-2 mb-4">
+        <!-- 3 LARGE ANIMATED HERO METRIC CARDS -->
+        <div class="budget-hero-metrics">
           
-          <!-- ITEM BREAKDOWN GRID -->
-          <div class="glass-card section-card">
-            <h3 class="card-title mb-3"><i class="fa-solid fa-chart-pie text-cyan me-2"></i> Category Expenditure Breakdown</h3>
-            
-            <div class="budget-breakdown-row">
-              <span><i class="fa-solid fa-hotel text-pink me-2"></i> Hotel Accommodation ${trip.selectedHotel ? `(${trip.selectedHotel.name})` : ''}</span>
-              <strong>₹${selectedHotelCost.toLocaleString()}</strong>
+          <div class="budget-metric-card">
+            <div class="budget-metric-icon total">
+              <i class="fa-solid fa-wallet"></i>
             </div>
-
-            <div class="budget-breakdown-row">
-              <span><i class="fa-solid fa-plane-departure text-indigo me-2"></i> Transit & Transport</span>
-              <strong>₹${transportCost.toLocaleString()}</strong>
-            </div>
-
-            <div class="budget-breakdown-row">
-              <span><i class="fa-solid fa-utensils text-amber me-2"></i> Food & Dining</span>
-              <strong>₹${foodCost.toLocaleString()}</strong>
-            </div>
-
-            <div class="budget-breakdown-row">
-              <span><i class="fa-solid fa-ticket text-emerald me-2"></i> Entry Tickets & Sightseeing</span>
-              <strong>₹${ticketsCost.toLocaleString()}</strong>
+            <div class="budget-metric-body">
+              <span class="budget-metric-label">Total Budget</span>
+              <h2 class="budget-metric-value" id="bmTotalVal">₹${budget.toLocaleString()}</h2>
+              <span style="font-size:12px; color:#cbd5e1;">Target Expenditure</span>
             </div>
           </div>
 
-          <!-- REAL-TIME CURRENCY CONVERTER -->
-          <div class="glass-card section-card">
-            <h3 class="card-title mb-3"><i class="fa-solid fa-arrow-right-arrow-left text-purple me-2"></i> Live Currency Converter</h3>
-            <p class="card-desc mb-3">Convert budget between INR, USD, EUR, and GBP instantly</p>
-            
-            <div class="form-group mb-3">
-              <label class="form-label-compact">Amount in INR (₹)</label>
-              <input type="number" id="currencyInrInput" class="form-control-compact" value="${budget}">
+          <div class="budget-metric-card">
+            <div class="budget-metric-icon spent">
+              <i class="fa-solid fa-credit-card"></i>
             </div>
-
-            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;" class="font-mono text-center">
-              <div class="weather-metric-tile">
-                <span class="text-cyan">USD ($)</span>
-                <strong class="d-block" id="convUsd">$${(budget / 83.5).toFixed(2)}</strong>
-              </div>
-              <div class="weather-metric-tile">
-                <span class="text-cyan">EUR (€)</span>
-                <strong class="d-block" id="convEur">€${(budget / 90.2).toFixed(2)}</strong>
-              </div>
-              <div class="weather-metric-tile">
-                <span class="text-cyan">GBP (£)</span>
-                <strong class="d-block" id="convGbp">£${(budget / 106.1).toFixed(2)}</strong>
-              </div>
+            <div class="budget-metric-body">
+              <span class="budget-metric-label">Current Spent</span>
+              <h2 class="budget-metric-value" id="bmSpentVal" style="color:#a855f7;">₹${totalSpent.toLocaleString()}</h2>
+              <span style="font-size:12px; color:#cbd5e1;">${pctSpent}% of total allocated</span>
             </div>
           </div>
 
+          <div class="budget-metric-card">
+            <div class="budget-metric-icon remaining">
+              <i class="fa-solid fa-piggy-bank"></i>
+            </div>
+            <div class="budget-metric-body">
+              <span class="budget-metric-label">Remaining Budget</span>
+              <h2 class="budget-metric-value" id="bmRemVal" style="color:${remainingBudget < 0 ? '#ef4444' : '#10b981'};">₹${remainingBudget.toLocaleString()}</h2>
+              <span style="font-size:12px; color:#cbd5e1;">${remainingBudget < 0 ? 'Over budget by ' + Math.abs(remainingBudget).toLocaleString() : 'Available unspent balance'}</span>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- LIVE BUDGET CALCULATOR TOOLBAR -->
+        <div class="glass-card section-card mb-4" style="background: rgba(0, 242, 254, 0.03); border-color: rgba(0, 242, 254, 0.2);">
+          <div class="card-header-bar mb-3">
+            <h3 class="card-title" style="color: var(--color-primary);"><i class="fa-solid fa-calculator"></i> Live Budget Calculator</h3>
+            <span style="font-size:12px; color:#94a3b8;">Adjust parameters to update live calculations instantly</span>
+          </div>
+
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px;">
+            <div>
+              <label class="form-label-compact">Total Budget (₹ INR)</label>
+              <input type="number" id="calcBudgetInput" class="form-control-compact" value="${budget}" step="5000">
+            </div>
+
+            <div>
+              <label class="form-label-compact">Travelers</label>
+              <div class="stepper-box">
+                <button type="button" class="btn-stepper" id="calcTravelersMinus"><i class="fa-solid fa-minus"></i></button>
+                <input type="number" id="calcTravelersInput" class="stepper-input" value="${travelers}" readonly>
+                <button type="button" class="btn-stepper" id="calcTravelersPlus"><i class="fa-solid fa-plus"></i></button>
+              </div>
+            </div>
+
+            <div>
+              <label class="form-label-compact">Number of Days</label>
+              <div class="stepper-box">
+                <button type="button" class="btn-stepper" id="calcDaysMinus"><i class="fa-solid fa-minus"></i></button>
+                <input type="number" id="calcDaysInput" class="stepper-input" value="${days}" readonly>
+                <button type="button" class="btn-stepper" id="calcDaysPlus"><i class="fa-solid fa-plus"></i></button>
+              </div>
+            </div>
+
+            <div>
+              <label class="form-label-compact">Travel Style</label>
+              <select id="calcStyleSelect" class="form-control-compact">
+                <option value="Budget" ${travelStyle === 'Budget' ? 'selected' : ''}>Budget</option>
+                <option value="Standard" ${travelStyle === 'Standard' ? 'selected' : ''}>Standard</option>
+                <option value="Luxury" ${travelStyle === 'Luxury' ? 'selected' : ''}>Luxury</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- 6 CATEGORY BREAKDOWN CARDS -->
+        <div class="glass-card section-card mb-4">
+          <div class="card-header-bar mb-2">
+            <h3 class="card-title"><i class="fa-solid fa-chart-pie gradient-text"></i> Category Budget Breakdown</h3>
+            <span style="font-size:12.5px; color:#cbd5e1;">6 Itemized Expense Categories</span>
+          </div>
+
+          <div class="budget-categories-grid">
+            ${categories.map(cat => {
+              const rem = cat.alloc - cat.spent;
+              const pct = cat.alloc > 0 ? Math.min(100, Math.round((cat.spent / cat.alloc) * 100)) : 0;
+              const barColor = pct > 100 ? '#ef4444' : (pct > 80 ? '#f59e0b' : '#00f2fe');
+
+              return `
+                <div class="budget-category-card">
+                  <div class="cat-header">
+                    <div class="cat-title">${cat.name}</div>
+                    <span class="cat-badge-pct" style="color: ${barColor}; border-color: ${barColor}40; background: ${barColor}15;">${pct}% Used</span>
+                  </div>
+
+                  <div class="cat-stats-row">
+                    <div class="cat-stat-item">
+                      <span class="cat-stat-label">Allocated</span>
+                      <span class="cat-stat-val">₹${cat.alloc.toLocaleString()}</span>
+                    </div>
+                    <div class="cat-stat-item">
+                      <span class="cat-stat-label">Spent</span>
+                      <span class="cat-stat-val" style="color: ${barColor};">₹${cat.spent.toLocaleString()}</span>
+                    </div>
+                    <div class="cat-stat-item">
+                      <span class="cat-stat-label">Remaining</span>
+                      <span class="cat-stat-val" style="color: ${rem < 0 ? '#ef4444' : '#10b981'};">₹${rem.toLocaleString()}</span>
+                    </div>
+                  </div>
+
+                  <div class="cat-progress-track">
+                    <div class="cat-progress-fill" style="width: ${pct}%; background: ${barColor};"></div>
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        </div>
+
+        <!-- 3 INTERACTIVE IMPACT SECTIONS -->
+        <div class="budget-impact-grid mb-4">
+          
+          <!-- 1. HOTEL IMPACT -->
+          <div class="impact-card">
+            <div class="impact-header">
+              <h4 class="impact-title"><i class="fa-solid fa-hotel text-cyan me-1"></i> Hotel Impact</h4>
+              <span class="badge-sub text-emerald">Active Selection</span>
+            </div>
+
+            <div class="impact-item-row"><span>Selected Hotel</span><strong>${selectedHotel ? selectedHotel.name : 'Standard Hotel'}</strong></div>
+            <div class="impact-item-row"><span>Rate / Night</span><strong>₹${hotelEstNightRate.toLocaleString()} / night</strong></div>
+            <div class="impact-item-row"><span>Duration</span><strong>${days} Nights</strong></div>
+            <div class="impact-item-row"><span>Subtotal Stays</span><strong>₹${hotelSubtotal.toLocaleString()}</strong></div>
+            <div class="impact-item-row"><span>Taxes &amp; GST (18%)</span><strong>₹${hotelTax.toLocaleString()}</strong></div>
+            <div class="impact-item-row" style="font-size:15px; font-weight:800; color:#00f2fe; margin-top:4px;"><span>Grand Total Hotel</span><strong>₹${hotelGrandTotal.toLocaleString()}</strong></div>
+            <div class="impact-item-row"><span>Budget Remaining After Hotel</span><strong style="color:#10b981;">₹${(budget - hotelGrandTotal).toLocaleString()}</strong></div>
+
+            ${trip.hotels && trip.hotels.length > 1 ? `
+              <div class="mt-3">
+                <label style="font-size:11.5px; color:#94a3b8;" class="fw-bold">Switch Hotel Choice:</label>
+                <select id="impactHotelSelect" class="form-control-compact mt-1">
+                  ${trip.hotels.map(h => `
+                    <option value="${h.name}" ${selectedHotel && selectedHotel.name === h.name ? 'selected' : ''}>${h.name} - ₹${(h.price_per_night || Math.round(allocHotel/days)).toLocaleString()}/night</option>
+                  `).join('')}
+                </select>
+              </div>
+            ` : ''}
+          </div>
+
+          <!-- 2. TRANSPORT IMPACT -->
+          <div class="impact-card">
+            <div class="impact-header">
+              <h4 class="impact-title"><i class="fa-solid fa-plane-departure text-purple me-1"></i> Transport Impact</h4>
+              <span class="badge-sub text-cyan">Transit Analysis</span>
+            </div>
+
+            <div class="impact-item-row"><span>Selected Mode</span><strong>${selectedTransport ? selectedTransport.mode : 'Car (Personal)'}</strong></div>
+            <div class="impact-item-row"><span>Base Fare / Transit</span><strong>₹${transportBaseCost.toLocaleString()}</strong></div>
+            <div class="impact-item-row"><span>Fuel Estimate</span><strong>₹${fuelCost.toLocaleString()}</strong></div>
+            <div class="impact-item-row"><span>Tolls &amp; Parking</span><strong>₹${tollsCost.toLocaleString()}</strong></div>
+            <div class="impact-item-row" style="font-size:15px; font-weight:800; color:#a855f7; margin-top:4px;"><span>Grand Total Transit</span><strong>₹${transportGrandTotal.toLocaleString()}</strong></div>
+            <div class="impact-item-row"><span>Budget Remaining After Transit</span><strong style="color:#10b981;">₹${(budget - hotelGrandTotal - transportGrandTotal).toLocaleString()}</strong></div>
+
+            ${trip.transportData && trip.transportData.options ? `
+              <div class="mt-3">
+                <label style="font-size:11.5px; color:#94a3b8;" class="fw-bold">Switch Transit Option:</label>
+                <select id="impactTransportSelect" class="form-control-compact mt-1">
+                  ${trip.transportData.options.map(o => `
+                    <option value="${o.mode}" ${selectedTransport && selectedTransport.mode === o.mode ? 'selected' : ''}>${o.mode} - ${o.estimated_cost}</option>
+                  `).join('')}
+                </select>
+              </div>
+            ` : ''}
+          </div>
+
+          <!-- 3. ACTIVITY IMPACT -->
+          <div class="impact-card">
+            <div class="impact-header">
+              <h4 class="impact-title"><i class="fa-solid fa-ticket text-gold me-1"></i> Activity Impact</h4>
+              <span class="badge-sub text-gold">Sightseeing</span>
+            </div>
+
+            <div class="impact-item-row"><span>Attractions Count</span><strong>${trip.attractions ? trip.attractions.length : 5} Spots</strong></div>
+            <div class="impact-item-row"><span>Avg Entry Pass / Person</span><strong>₹${ticketsPerPerson.toLocaleString()}</strong></div>
+            <div class="impact-item-row"><span>Travelers</span><strong>${travelers} Persons</strong></div>
+            <div class="impact-item-row" style="font-size:15px; font-weight:800; color:#fbbf24; margin-top:4px;"><span>Total Activity Passes</span><strong>₹${ticketsTotal.toLocaleString()}</strong></div>
+            <div class="impact-item-row"><span>Budget Remaining</span><strong style="color:#10b981;">₹${remainingBudget.toLocaleString()}</strong></div>
+          </div>
+
+        </div>
+
+        <!-- CHARTS SECTION -->
+        <div class="budget-charts-grid mb-4">
+          <div class="chart-card">
+            <div class="card-header-bar">
+              <h4 class="card-title" style="font-size:16px;"><i class="fa-solid fa-chart-pie text-cyan"></i> Cost Distribution (Donut Chart)</h4>
+            </div>
+            <div class="chart-canvas-wrapper">
+              <canvas id="budgetDonutCanvas"></canvas>
+            </div>
+          </div>
+
+          <div class="chart-card">
+            <div class="card-header-bar">
+              <h4 class="card-title" style="font-size:16px;"><i class="fa-solid fa-chart-column text-purple"></i> Allocated vs Actual (Bar Chart)</h4>
+            </div>
+            <div class="chart-canvas-wrapper">
+              <canvas id="budgetBarCanvas"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- SMART AI SUGGESTIONS CARD -->
+        <div class="glass-card section-card mb-4" style="background: rgba(245, 158, 11, 0.04); border-color: rgba(245, 158, 11, 0.25);">
+          <div class="card-header-bar mb-2">
+            <h3 class="card-title" style="color: #fbbf24;"><i class="fa-solid fa-lightbulb"></i> Smart AI Insights &amp; Savings Recommendations</h3>
+          </div>
+          <ul style="margin:0; padding-left:20px; color:#cbd5e1; font-size:13.5px; line-height:1.7;">
+            <li>💡 <strong>Hotel Optimization:</strong> Switch from Luxury to Standard Hotel to save up to <strong>₹${Math.round(hotelGrandTotal * 0.22).toLocaleString()} INR</strong>.</li>
+            <li>🚌 <strong>Transit Savings:</strong> Using AC Luxury Bus instead of private taxi saves up to <strong>₹1,800 INR</strong> on transport.</li>
+            <li>🎫 <strong>Sightseeing Tip:</strong> Pre-book Botanical Garden and Lake Boating passes together to save <strong>10%</strong>.</li>
+            <li>🍽 <strong>Dining Budget:</strong> Allocating ₹${dailyFoodRate}/day per person keeps food costs well balanced.</li>
+          </ul>
+        </div>
+
+        <!-- FINAL FINANCIAL SUMMARY GRID -->
+        <div class="glass-card section-card mb-4">
+          <div class="card-header-bar mb-3">
+            <h3 class="card-title"><i class="fa-solid fa-receipt gradient-text"></i> Final Financial Summary</h3>
+          </div>
+
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
+            <div class="glass-card p-3" style="background: rgba(255,255,255,0.03);">
+              <span style="font-size:12px; color:#94a3b8; font-weight:600; text-transform:uppercase;">Total Budget</span>
+              <h4 style="font-size:22px; font-weight:800; color:#ffffff; margin-top:4px;">₹${budget.toLocaleString()}</h4>
+            </div>
+
+            <div class="glass-card p-3" style="background: rgba(255,255,255,0.03);">
+              <span style="font-size:12px; color:#94a3b8; font-weight:600; text-transform:uppercase;">Total Spent</span>
+              <h4 style="font-size:22px; font-weight:800; color:#a855f7; margin-top:4px;">₹${totalSpent.toLocaleString()}</h4>
+            </div>
+
+            <div class="glass-card p-3" style="background: rgba(255,255,255,0.03);">
+              <span style="font-size:12px; color:#94a3b8; font-weight:600; text-transform:uppercase;">Remaining Balance</span>
+              <h4 style="font-size:22px; font-weight:800; color:${remainingBudget < 0 ? '#ef4444' : '#10b981'}; margin-top:4px;">₹${remainingBudget.toLocaleString()}</h4>
+            </div>
+
+            <div class="glass-card p-3" style="background: rgba(255,255,255,0.03);">
+              <span style="font-size:12px; color:#94a3b8; font-weight:600; text-transform:uppercase;">Estimated Savings</span>
+              <h4 style="font-size:22px; font-weight:800; color:#00f2fe; margin-top:4px;">₹${Math.max(0, remainingBudget).toLocaleString()}</h4>
+            </div>
+
+            <div class="glass-card p-3" style="background: rgba(255,255,255,0.03);">
+              <span style="font-size:12px; color:#94a3b8; font-weight:600; text-transform:uppercase;">Cost Per Person</span>
+              <h4 style="font-size:22px; font-weight:800; color:#ffffff; margin-top:4px;">₹${Math.round(totalSpent / travelers).toLocaleString()}</h4>
+            </div>
+
+            <div class="glass-card p-3" style="background: rgba(255,255,255,0.03);">
+              <span style="font-size:12px; color:#94a3b8; font-weight:600; text-transform:uppercase;">Daily Average Cost</span>
+              <h4 style="font-size:22px; font-weight:800; color:#ffffff; margin-top:4px;">₹${Math.round(totalSpent / days).toLocaleString()}</h4>
+            </div>
+          </div>
         </div>
 
       </div>
     `;
 
-    document.getElementById('currencyInrInput')?.addEventListener('input', (e) => {
-      const val = parseFloat(e.target.value) || 0;
-      document.getElementById('convUsd').innerText = `$${(val / 83.5).toFixed(2)}`;
-      document.getElementById('convEur').innerText = `€${(val / 90.2).toFixed(2)}`;
-      document.getElementById('convGbp').innerText = `£${(val / 106.1).toFixed(2)}`;
+    // Initialize Chart.js charts
+    setTimeout(() => {
+      initBudgetCharts(categories);
+    }, 100);
+
+    // Event listeners for Live Budget Calculator
+    document.getElementById('calcBudgetInput')?.addEventListener('input', (e) => {
+      const val = parseInt(e.target.value) || 50000;
+      trip.budget = val;
+      saveActiveTripState();
+      renderBudgetAgentPage();
     });
+
+    document.getElementById('calcTravelersMinus')?.addEventListener('click', () => {
+      if (trip.travelers > 1) {
+        trip.travelers--;
+        saveActiveTripState();
+        renderBudgetAgentPage();
+      }
+    });
+
+    document.getElementById('calcTravelersPlus')?.addEventListener('click', () => {
+      if (trip.travelers < 15) {
+        trip.travelers++;
+        saveActiveTripState();
+        renderBudgetAgentPage();
+      }
+    });
+
+    document.getElementById('calcDaysMinus')?.addEventListener('click', () => {
+      if (trip.days > 1) {
+        trip.days--;
+        saveActiveTripState();
+        renderBudgetAgentPage();
+      }
+    });
+
+    document.getElementById('calcDaysPlus')?.addEventListener('click', () => {
+      if (trip.days < 14) {
+        trip.days++;
+        saveActiveTripState();
+        renderBudgetAgentPage();
+      }
+    });
+
+    document.getElementById('calcStyleSelect')?.addEventListener('change', (e) => {
+      trip.travelStyle = e.target.value;
+      saveActiveTripState();
+      renderBudgetAgentPage();
+    });
+
+    // Impact Switch Handlers
+    document.getElementById('impactHotelSelect')?.addEventListener('change', (e) => {
+      const name = e.target.value;
+      const hObj = trip.hotels.find(x => x.name === name);
+      if (hObj) {
+        trip.selectedHotel = hObj;
+        saveActiveTripState();
+        renderBudgetAgentPage();
+      }
+    });
+
+    document.getElementById('impactTransportSelect')?.addEventListener('change', (e) => {
+      const mode = e.target.value;
+      const tObj = trip.transportData.options.find(x => x.mode === mode);
+      if (tObj) {
+        trip.selectedTransport = tObj;
+        saveActiveTripState();
+        renderBudgetAgentPage();
+      }
+    });
+
+    // Export Buttons
+    document.getElementById('btnExportPDF')?.addEventListener('click', exportBudgetPDF);
+    document.getElementById('btnExportCSV')?.addEventListener('click', () => exportBudgetCSV(trip, categories, totalSpent, remainingBudget));
+    document.getElementById('btnPrintBudget')?.addEventListener('click', () => window.print());
   }
 
-  /* ==========================================================================
-     10. DESTINATION AGENT PAGE
-     ========================================================================== */
+  function parseCost(valStr) {
+    if (!valStr) return 0;
+    if (typeof valStr === 'number') return valStr;
+    const clean = valStr.replace(/[^0-9]/g, '');
+    return parseInt(clean) || 0;
+  }
+
+  function saveActiveTripState() {
+    // No-op: Backend is single source of truth
+  }
+
+  function initBudgetCharts(categories) {
+    const donutCtx = document.getElementById('budgetDonutCanvas')?.getContext('2d');
+    const barCtx = document.getElementById('budgetBarCanvas')?.getContext('2d');
+
+    if (typeof Chart === 'undefined') return;
+
+    if (budgetDonutChartInstance) budgetDonutChartInstance.destroy();
+    if (budgetBarChartInstance) budgetBarChartInstance.destroy();
+
+    const labels = categories.map(c => c.name);
+    const spentData = categories.map(c => c.spent);
+    const allocData = categories.map(c => c.alloc);
+
+    if (donutCtx) {
+      budgetDonutChartInstance = new Chart(donutCtx, {
+        type: 'doughnut',
+        data: {
+          labels: labels,
+          datasets: [{
+            data: spentData,
+            backgroundColor: ['#00f2fe', '#a855f7', '#fbbf24', '#10b981', '#f43f5e', '#64748b'],
+            borderWidth: 2,
+            borderColor: '#0f172a'
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'right', labels: { color: '#cbd5e1', font: { family: 'Plus Jakarta Sans', size: 11 } } }
+          }
+        }
+      });
+    }
+
+    if (barCtx) {
+      budgetBarChartInstance = new Chart(barCtx, {
+        type: 'bar',
+        data: {
+          labels: labels.map(l => l.split(' ')[1] || l),
+          datasets: [
+            { label: 'Allocated (₹)', data: allocData, backgroundColor: 'rgba(0, 242, 254, 0.4)', borderColor: '#00f2fe', borderWidth: 1 },
+            { label: 'Actual Spent (₹)', data: spentData, backgroundColor: 'rgba(168, 85, 247, 0.6)', borderColor: '#a855f7', borderWidth: 1 }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { labels: { color: '#cbd5e1', font: { family: 'Plus Jakarta Sans', size: 11 } } }
+          },
+          scales: {
+            x: { ticks: { color: '#94a3b8' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+            y: { ticks: { color: '#94a3b8' }, grid: { color: 'rgba(255,255,255,0.05)' } }
+          }
+        }
+      });
+    }
+  }
+
+  function exportBudgetPDF() {
+    window.print();
+  }
+
+  function exportBudgetCSV(trip, categories, totalSpent, remainingBudget) {
+    let csv = `Category,Allocated (INR),Spent (INR),Remaining (INR)\n`;
+    categories.forEach(c => {
+      csv += `"${c.name}",${c.alloc},${c.spent},${c.alloc - c.spent}\n`;
+    });
+    csv += `\nTotal Budget,${trip.budget}\nTotal Spent,${totalSpent}\nRemaining Budget,${remainingBudget}\n`;
+
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Budget_Report_${trip.name.replace(/ /g, '_')}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
 
   function renderDestinationAgentPage() {
     const container = document.getElementById('destAgentPageContainer');
     const trip = currentState.activeTrip;
-
     if (!trip || !trip.attractions || trip.attractions.length === 0) {
       renderEmptyState(container, 'Destination Agent');
       return;
@@ -1036,231 +1564,628 @@ document.addEventListener('DOMContentLoaded', () => {
 
     container.innerHTML = `
       <div class="dest-section-wrapper fade-in">
+        <!-- HEADER STATUS BANNER -->
         <div class="glass-card section-card mb-4">
           <div class="card-header-bar">
             <div>
-              <span class="badge-sub text-emerald"><i class="fa-solid fa-compass"></i> Authenticated Google Places Landmarks</span>
-              <h2 style="font-size: 24px; font-weight: 800; margin-top: 6px;">Top Attractions in ${trip.name}</h2>
-              <p class="card-desc">${trip.attractions.length} verified scenic spots, viewpoints, and cultural locations</p>
+              <span class="badge-sub text-emerald"><i class="fa-solid fa-circle-check"></i> Google Places API Verified</span>
+              <h2 style="font-size: 24px; font-weight: 800; margin-top: 6px;">Top Tourist Attractions in ${trip.name}</h2>
+              <p class="card-desc">Authentic tourist attractions with real high-quality photographs, star ratings, and Google Maps integration</p>
+            </div>
+            <div class="quick-stat-pill cyan-glow" style="padding: 8px 16px;">
+              <i class="fa-solid fa-camera"></i>
+              <span><strong>${trip.attractions.length}</strong> Real Attractions</span>
             </div>
           </div>
         </div>
 
-        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px;">
-          ${trip.attractions.map(spot => `
-            <div class="hotel-card-real">
-              <div class="hotel-img-wrapper">
-                <img src="${spot.photo_url || 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800&auto=format&fit=crop&q=80'}" class="hotel-img" alt="${spot.name}">
-                <span class="hotel-badge-tier">${spot.category || 'Sightseeing'}</span>
-              </div>
-              <div class="hotel-body">
-                <h4 class="hotel-title">${spot.name}</h4>
-                <div class="hotel-meta-row">
-                  <span class="hotel-stars"><i class="fa-solid fa-star text-gold"></i> ${spot.rating || 4.7} ★</span>
-                  <span class="hotel-reviews">(${spot.user_ratings_total || 420} Reviews)</span>
+        <!-- ATTRACTIONS GRID -->
+        <div class="attractions-grid-container">
+          ${(trip.places || trip.attractions || []).map(a => {
+            const ratingVal = (a.rating || 4.8).toFixed(1);
+            const reviewsTotal = (a.userRatingCount || a.user_ratings_total || 1250).toLocaleString();
+            const categoryName = a.category || (a.types && a.types[0] ? a.types[0].replace(/_/g, ' ').toUpperCase() : 'TOURIST ATTRACTION');
+            const mapsUrl = a.googleMapsUri || a.google_maps_url || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(a.name + ' ' + trip.name)}`;
+            const travelPlaceholder = 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=1200&auto=format&fit=crop&q=80';
+            const displayImg = resolvePhotoSrc(a.photo_url, travelPlaceholder);
+
+            return `
+              <div class="card attraction-card-real">
+                <div class="attraction-img-wrapper">
+                  <img src="${displayImg}" class="attraction-img" alt="${a.name}" loading="lazy" onerror="this.onerror=null; this.src='${travelPlaceholder}';">
+                  <span class="attraction-badge-category">${categoryName}</span>
                 </div>
-                <div class="hotel-address-text mt-2"><i class="fa-solid fa-location-dot text-cyan me-1"></i> ${spot.address || spot.vicinity || trip.name}</div>
-                <p style="font-size:12px; color:#cbd5e1; margin-top:8px;">${spot.description || 'Authentic landmark offering stunning natural beauty and local experiences.'}</p>
+                <div class="attraction-body">
+                  <h3 class="attraction-title">${a.name}</h3>
+                  <div class="attraction-rating-row">
+                    <span class="attraction-stars">⭐ ${ratingVal}</span>
+                    <span class="attraction-reviews">(${reviewsTotal} reviews)</span>
+                  </div>
+                  <p class="attraction-address">
+                    <i class="fa-solid fa-location-dot"></i> ${a.address || `${trip.name}, India`}
+                  </p>
+                  <div class="attraction-actions">
+                    <a href="${mapsUrl}" target="_blank" class="attraction-btn-gmaps">
+                      <i class="fa-solid fa-map-location-dot"></i> Google Maps
+                    </a>
+                    <button class="attraction-btn-details btn-view-attraction-details" data-placeid="${a.place_id || a.name}" data-name="${a.name}">
+                      <i class="fa-solid fa-circle-info"></i> View Details
+                    </button>
+                  </div>
+                </div>
               </div>
-            </div>
-          `).join('')}
+            `;
+          }).join('')}
+        </div>
+      </div>
+
+      <!-- ATTRACTION DETAILS MODAL BACKDROP -->
+      <div id="attractionModalBackdrop" class="modal-backdrop-custom" style="display: none;">
+        <div class="modal-content-glass" style="max-width: 650px;">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h3 class="card-title" id="attractionModalTitle"><i class="fa-solid fa-compass text-cyan"></i> Attraction Details</h3>
+            <button class="btn btn-sm btn-glass" id="btnCloseAttractionModal"><i class="fa-solid fa-xmark"></i> Close</button>
+          </div>
+          <div id="attractionModalBody"></div>
         </div>
       </div>
     `;
-  }
 
-  /* ==========================================================================
-     11. HELPER / SHARED FUNCTIONS
-     ========================================================================== */
-
-  function renderEmptyState(container, agentName) {
-    if (!container) return;
-    container.innerHTML = `
-      <div class="empty-state-box py-5 fade-in">
-        <i class="fa-solid fa-brain empty-state-icon" style="font-size:48px; color:var(--color-primary);"></i>
-        <h3 class="empty-state-title mt-3">${agentName} Pending Activation</h3>
-        <p class="empty-state-desc">Generate a trip plan using the New Trip Plan form to view live AI agent insights.</p>
-        <button class="btn btn-primary-gradient btn-sm mt-3 nav-trigger" data-target="new-plan">
-          <i class="fa-solid fa-plus"></i> Create New Trip
-        </button>
-      </div>
-    `;
-    bindNavTriggers();
-  }
-
-  function renderDashboard() {
-    const totalTrips = document.getElementById('dashTotalTrips');
-    const totalBudget = document.getElementById('dashTotalBudget');
-    const tripsCompleted = document.getElementById('dashTripsCompleted');
-    const banner = document.getElementById('dashActiveTripBanner');
-
-    if (totalTrips) totalTrips.innerText = currentState.savedTrips.length;
-    if (tripsCompleted) tripsCompleted.innerText = currentState.savedTrips.length;
-
-    let budgetSum = currentState.savedTrips.reduce((acc, t) => acc + (t.budget || 0), 0);
-    if (totalBudget) totalBudget.innerText = `₹${budgetSum.toLocaleString()}`;
-
-    if (currentState.activeTrip && banner) {
-      const t = currentState.activeTrip;
-      banner.style.display = 'block';
-      banner.innerHTML = `
-        <div class="glass-card p-4 d-flex justify-content-between align-items-center flex-wrap gap-3" style="background: linear-gradient(135deg, rgba(0,242,254,0.1), rgba(118,75,162,0.1)); border-color: rgba(0,242,254,0.3);">
-          <div>
-            <span class="badge-sub text-emerald mb-1"><i class="fa-solid fa-circle-check"></i> Active Generated Plan</span>
-            <h3 style="font-size: 22px; font-weight: 800; color: #fff;">${t.name} (${t.days} Days)</h3>
-            <p style="font-size: 13px; color: #cbd5e1; margin:0;">Budget: ₹${(t.budget || 50000).toLocaleString()} • Travelers: ${t.travelers || 2} • Travel Style: ${t.travelStyle || 'Luxury'}</p>
-          </div>
-          <button class="btn btn-primary-gradient nav-trigger" data-target="controller">
-            <i class="fa-solid fa-eye"></i> View Full Trip Plan
-          </button>
-        </div>
-      `;
-      bindNavTriggers();
-    }
-  }
-
-  function renderHistoryGrid() {
-    const container = document.getElementById('historyGridContainer');
-    if (!container) return;
-
-    if (currentState.savedTrips.length === 0) {
-      container.innerHTML = `<div class="text-muted text-center py-5">No saved trip history found.</div>`;
-      return;
-    }
-
-    container.innerHTML = `
-      <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px;">
-        ${currentState.savedTrips.map(t => `
-          <div class="glass-card p-4">
-            <div class="d-flex justify-content-between align-items-center mb-2">
-              <h4 style="font-size: 18px; font-weight: 800; color: #fff;">${t.name}</h4>
-              <span class="badge-sub text-cyan">${t.days} Days</span>
-            </div>
-            <div style="font-size: 13px; color: #cbd5e1; margin-bottom: 12px;">
-              Budget: <strong>₹${(t.budget || 50000).toLocaleString()}</strong> • Date: ${t.datePlanned || 'Recent'}
-            </div>
-            <button class="btn btn-sm btn-primary-gradient w-100 btn-load-trip" data-id="${t.id}">
-              <i class="fa-solid fa-folder-open me-1"></i> Open Trip
-            </button>
-          </div>
-        `).join('')}
-      </div>
-    `;
-
-    document.querySelectorAll('.btn-load-trip').forEach(btn => {
+    // Event listeners for View Details buttons
+    document.querySelectorAll('.btn-view-attraction-details').forEach(btn => {
       btn.addEventListener('click', () => {
-        const id = btn.getAttribute('data-id');
-        const trip = currentState.savedTrips.find(t => t.id === id);
-        if (trip) {
-          currentState.activeTrip = trip;
-          localStorage.setItem('aether_active_trip', JSON.stringify(trip));
-          switchView('controller');
-        }
+        const placeId = btn.getAttribute('data-placeid');
+        const name = btn.getAttribute('data-name');
+        const items = trip.places || trip.attractions || [];
+        const item = items.find(x => (x.place_id || x.name) === placeId || x.name === name);
+        if (item) openAttractionModal(item, trip.name);
       });
+    });
+
+    document.getElementById('btnCloseAttractionModal')?.addEventListener('click', () => {
+      const modal = document.getElementById('attractionModalBackdrop');
+      if (modal) modal.style.display = 'none';
     });
   }
 
+  function openAttractionModal(attraction, destName) {
+    const modal = document.getElementById('attractionModalBackdrop');
+    const body = document.getElementById('attractionModalBody');
+    if (!modal || !body) return;
+
+    const ratingVal = (attraction.rating || 4.8).toFixed(1);
+    const reviewsTotal = (attraction.userRatingCount || attraction.user_ratings_total || 1250).toLocaleString();
+    const mapsUrl = attraction.googleMapsUri || attraction.google_maps_url || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(attraction.name + ' ' + destName)}`;
+    const travelPlaceholder = 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=1200&auto=format&fit=crop&q=80';
+    const displayImg = resolvePhotoSrc(attraction.photo_url, travelPlaceholder);
+
+    body.innerHTML = `
+      <div style="display:flex; flex-direction:column; gap:16px;">
+        <div style="width:100%; height:260px; aspect-ratio:16/9; border-radius:14px; overflow:hidden; position:relative; background:#0f172a;">
+          <img src="${displayImg}" style="width:100%; height:100%; object-fit:cover;" alt="${attraction.name}" loading="lazy" onerror="this.onerror=null; this.src='${travelPlaceholder}';">
+          <span class="attraction-badge-category">${attraction.category || 'TOURIST ATTRACTION'}</span>
+        </div>
+        <div>
+          <h2 style="font-size:22px; font-weight:800; color:#ffffff; margin-bottom:6px;">${attraction.name}</h2>
+          <div style="display:flex; align-items:center; gap:10px; font-size:14px; margin-bottom:12px;">
+            <span style="color:#fbbf24; font-weight:800; background:rgba(251,191,36,0.1); padding:4px 10px; border-radius:6px; border:1px solid rgba(251,191,36,0.2);">⭐ ${ratingVal} Rating</span>
+            <span style="color:#cbd5e1;">(${reviewsTotal} total user reviews)</span>
+          </div>
+          <div style="font-size:13.5px; color:#cbd5e1; margin-bottom:12px; line-height:1.6;">
+            <i class="fa-solid fa-location-dot text-cyan me-2"></i><strong>Address:</strong> ${attraction.address || destName}
+          </div>
+          ${attraction.latitude ? `
+            <div style="font-size:12.5px; color:#94a3b8; margin-bottom:14px;">
+              <i class="fa-solid fa-compass text-cyan me-2"></i><strong>Coordinates:</strong> ${attraction.latitude.toFixed(4)}° N, ${attraction.longitude.toFixed(4)}° E • <strong>Place ID:</strong> ${attraction.place_id || 'N/A'}
+            </div>
+          ` : ''}
+          <div style="display:flex; gap:12px; margin-top:20px;">
+            <a href="${mapsUrl}" target="_blank" class="btn btn-primary-gradient flex-1 text-center text-decoration-none" style="padding:10px;">
+              <i class="fa-solid fa-map-location-dot"></i> Open in Google Maps
+            </a>
+          </div>
+        </div>
+      </div>
+    `;
+
+    modal.style.display = 'flex';
+  }
+
+  /* ==========================================================================
+     TRIP OVERVIEW & SEQUENTIAL MULTI-AGENT EXECUTION PIPELINE
+     Order: Destination -> Budget -> Weather -> Transport -> Accommodation -> Itinerary
+     ========================================================================== */
+
+  async function runMultiAgentPipeline(destination, destination_days, budget, travelers, travelStyle, selectedInterests) {
+    const days = parseInt(destination_days) || 3;
+    const fromLoc = "Chennai";
+
+    // Requirement 1: Navigate immediately to AI Processing view
+    switchView('processing');
+
+    // Hide error banner if previously visible
+    const errorBanner = document.getElementById('procErrorBanner');
+    if (errorBanner) errorBanner.style.display = 'none';
+
+    // Reset Progress Bar & Cards
+    setProgress(0, "Initializing Multi-Agent Controller...");
+    const tripIdTag = document.getElementById('procTripIdTag');
+    const generatedId = 'TRIP-' + Date.now().toString().slice(-6);
+    if (tripIdTag) tripIdTag.innerText = `Trip ID: ${generatedId}`;
+
+    setAgentState('proc-agent-controller', 'proc-state-controller', 'running');
+    setAgentState('proc-agent-dest', 'proc-state-dest', 'running');
+    setAgentState('proc-agent-budget', 'proc-state-budget', 'running');
+    setAgentState('proc-agent-weather', 'proc-state-weather', 'running');
+    setAgentState('proc-agent-transport', 'proc-state-transport', 'running');
+    setAgentState('proc-agent-hotel', 'proc-state-hotel', 'running');
+    setAgentState('proc-agent-itin', 'proc-state-itin', 'waiting');
+
+    try {
+      // Requirement 1: Execute Destination, Budget, Weather, Transport, Accommodation agents concurrently
+      // Requirement 7: Show live progress (Destination 20%, Budget 40%, Weather 60%, Transport 80%, Accommodation 90%, Itinerary 100%)
+      // Requirement 8: Fault tolerant - if one agent fails or is slow, continue processing others
+
+      const destPromise = fetchAPI('/api/destination', { destination: destination, days: days })
+        .then(res => {
+          setAgentState('proc-agent-dest', 'proc-state-dest', 'completed');
+          setProgress(20, "Destination Agent completed (20%)");
+          return res;
+        })
+        .catch(err => {
+          console.warn("Destination Agent API call fallback:", err);
+          setAgentState('proc-agent-dest', 'proc-state-dest', 'failed');
+          setProgress(20, "Destination Agent fallback (20%)");
+          return { destination: destination, country: "India", places: [], attractions: [] };
+        });
+
+      const budgetPromise = fetchAPI('/api/budget', { budget: budget, days: days, travelers: travelers, travel_style: travelStyle })
+        .then(res => {
+          setAgentState('proc-agent-budget', 'proc-state-budget', 'completed');
+          setProgress(40, "Budget Agent completed (40%)");
+          return res;
+        })
+        .catch(err => {
+          console.warn("Budget Agent fallback:", err);
+          setAgentState('proc-agent-budget', 'proc-state-budget', 'failed');
+          setProgress(40, "Budget Agent fallback (40%)");
+          return null;
+        });
+
+      const weatherPromise = fetchAPI('/api/weather', { destination: destination, days: days })
+        .then(res => {
+          setAgentState('proc-agent-weather', 'proc-state-weather', 'completed');
+          setProgress(60, "Weather Agent completed (60%)");
+          return res;
+        })
+        .catch(err => {
+          console.warn("Weather Agent fallback:", err);
+          setAgentState('proc-agent-weather', 'proc-state-weather', 'failed');
+          setProgress(60, "Weather Agent fallback (60%)");
+          return getFallbackWeather(destination);
+        });
+
+      const transportPromise = fetchAPI('/api/transport', { from: fromLoc, destination: destination })
+        .then(res => {
+          setAgentState('proc-agent-transport', 'proc-state-transport', 'completed');
+          setProgress(80, "Transport Agent completed (80%)");
+          return res;
+        })
+        .catch(err => {
+          console.warn("Transport Agent fallback:", err);
+          setAgentState('proc-agent-transport', 'proc-state-transport', 'failed');
+          setProgress(80, "Transport Agent fallback (80%)");
+          return getFallbackTransport(fromLoc, destination);
+        });
+
+      const hotelPromise = fetchAPI('/api/accommodation', { destination: destination, budget: budget, travelers: travelers, days: days, travel_style: travelStyle })
+        .then(res => {
+          setAgentState('proc-agent-hotel', 'proc-state-hotel', 'completed');
+          setProgress(90, "Accommodation Agent completed (90%)");
+          return res;
+        })
+        .catch(err => {
+          console.warn("Accommodation Agent fallback:", err);
+          setAgentState('proc-agent-hotel', 'proc-state-hotel', 'failed');
+          setProgress(90, "Accommodation Agent fallback (90%)");
+          return { hotels: [] };
+        });
+
+      // Requirement 2: Only start the Itinerary Agent after the Destination Agent finishes
+      const destRes = await destPromise;
+      const attractions = destRes.places || destRes.attractions || [];
+
+      // Destination Agent finished -> start Itinerary Agent UI state
+      setAgentState('proc-agent-itin', 'proc-state-itin', 'running');
+
+      // Await remaining parallel agent responses
+      const [budgetRes, weatherRes, transportRes, hotelRes] = await Promise.all([
+        budgetPromise,
+        weatherPromise,
+        transportPromise,
+        hotelPromise
+      ]);
+
+      const weatherData = weatherRes && weatherRes.current ? weatherRes : getFallbackWeather(destination);
+      const transportData = transportRes && transportRes.options ? transportRes : getFallbackTransport(fromLoc, destination);
+      const hotels = (hotelRes && hotelRes.hotels) || [];
+
+      // Step 3: Itinerary Agent Synthesis
+      let itinerary = destRes.itinerary;
+      if (!itinerary || itinerary.length === 0) {
+        itinerary = buildFallbackItinerary(destination, attractions, days);
+      }
+
+      setAgentState('proc-agent-itin', 'proc-state-itin', 'completed');
+      setAgentState('proc-agent-controller', 'proc-state-controller', 'completed');
+      setProgress(100, "Itinerary Agent completed (100%). Redirecting to Trip Overview...");
+
+      // Consolidate full trip plan
+      const newTrip = {
+        id: generatedId,
+        name: destRes.destination || destination,
+        country: destRes.country || 'India',
+        fromLoc: fromLoc,
+        days: days,
+        budget: budget,
+        travelers: travelers,
+        travelStyle: travelStyle,
+        interests: [...selectedInterests],
+        lat: attractions[0]?.latitude || 11.4102,
+        lng: attractions[0]?.longitude || 76.6950,
+        attractions: attractions,
+        hotels: hotels,
+        weatherData: weatherData,
+        transportData: transportData,
+        itinerary: itinerary,
+        budgetAnalysis: budgetRes,
+        costSummary: {
+          hotel: Math.round(budget * 0.40),
+          transport: Math.round(budget * 0.25),
+          food: Math.round(budget * 0.20),
+          tickets: Math.round(budget * 0.15),
+          total: budget
+        },
+        datePlanned: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+      };
+
+      currentState.activeTrip = newTrip;
+      currentState.savedTrips.unshift(newTrip);
+
+      // Save trip object to backend single source of truth
+      try {
+        const savedRes = await fetchAPI('/api/trip/save', newTrip);
+        if (savedRes && savedRes.id) {
+          currentState.activeTrip = savedRes;
+        }
+      } catch (e) {
+        console.warn("Backend trip save fallback:", e);
+      }
+
+      await loadBackendState();
+      await new Promise(r => setTimeout(r, 650));
+      switchView('controller');
+      renderTripOverviewPage();
+
+    } catch (err) {
+      console.error('Multi-Agent Execution Pipeline Failure:', err);
+      // Requirement 4: Stay on AI Processing, display error message, allow retry
+      setAgentState('proc-agent-controller', 'proc-state-controller', 'failed');
+      const errBanner = document.getElementById('procErrorBanner');
+      const errMsg = document.getElementById('procErrorMessage');
+      if (errMsg) errMsg.innerText = err.message || 'An error occurred while generating your travel plan.';
+      if (errBanner) errBanner.style.display = 'flex';
+      setProgress(0, "Multi-Agent workflow paused due to error.");
+    }
+  }
+
   function renderTripOverviewPage() {
-    const trip = currentState.activeTrip;
+    let trip = currentState.activeTrip;
     if (!trip) return;
 
-    document.getElementById('ovHeroDestName').innerText = `${trip.name}, ${trip.country || 'India'}`;
-    document.getElementById('ovHeroDates').innerText = `${trip.days} Days • ${trip.travelers} Travelers (${trip.travelStyle} Style)`;
-    document.getElementById('ovHeroBudget').innerText = `₹ ${(trip.budget || 50000).toLocaleString()} INR`;
+    // SECTION 1: HERO BANNER
+    const heroBanner = document.getElementById('overviewHeroBanner');
+    const heroDestName = document.getElementById('ovHeroDestName');
+    const heroDates = document.getElementById('ovHeroDates');
+    const heroBudget = document.getElementById('ovHeroBudget');
+    const heroInterests = document.getElementById('ovHeroInterests');
+    const heroWeatherBadge = document.getElementById('ovHeroWeatherBadge');
 
-    const intContainer = document.getElementById('ovHeroInterests');
-    if (intContainer) {
-      intContainer.innerHTML = (trip.interests || ['Nature', 'Adventure']).map(i => `<span class="interest-badge-pill">${i}</span>`).join('');
+    const heroImgUrl = resolvePhotoSrc(trip.attractions && trip.attractions[0]?.photo_url, 'https://images.unsplash.com/photo-1602216056096-3b40cc0c9944?auto=format&fit=crop&w=1200&q=80');
+
+    if (heroBanner) {
+      heroBanner.style.backgroundImage = `url('${heroImgUrl}')`;
+    }
+    if (heroDestName) heroDestName.innerText = `${trip.name}, ${trip.country || 'India'}`;
+    if (heroDates) heroDates.innerText = `${trip.days} Days • ${trip.travelers} Travelers (${trip.travelStyle || 'Standard'})`;
+    if (heroBudget) heroBudget.innerText = `₹ ${Number(trip.budget).toLocaleString()} INR`;
+
+    if (heroInterests) {
+      heroInterests.innerHTML = (trip.interests || ['Sightseeing', 'Culture', 'Nature'])
+        .map(i => `<span class="badge-sub">${i}</span>`).join(' ');
+    }
+    if (heroWeatherBadge) {
+      heroWeatherBadge.innerHTML = `<i class="fa-solid fa-cloud-sun"></i> ${trip.weatherData?.current?.condition || 'Pleasant'} • ${trip.weatherData?.current?.temp_c || 24}°C`;
     }
 
+    // SECTION 2: QUICK TRIP SUMMARY (8 GLASSMORPHISM CARDS)
     const quickGrid = document.getElementById('overviewQuickSummaryGrid');
     if (quickGrid) {
+      const topHotel = trip.hotels && trip.hotels[0] ? trip.hotels[0].name : 'Resort & Spa';
+      const mainTransport = trip.transportData?.options ? trip.transportData.options[0]?.mode || 'Flight / Express' : 'Flight & Transit';
+
       quickGrid.innerHTML = `
-        <div class="glass-card p-3 font-mono">
-          <span style="font-size:11px; color:#94a3b8;">LANDMARKS DISCOVERED</span>
-          <h3 style="font-size:20px; color:#00f2fe;" class="mt-1">${(trip.attractions || []).length} Attractions</h3>
+        <div class="summary-mini-card">
+          <div class="smc-icon" style="background:rgba(56,189,248,0.15); color:#38bdf8;"><i class="fa-solid fa-location-dot"></i></div>
+          <div class="smc-body">
+            <span class="smc-label">Destination</span>
+            <span class="smc-value">${trip.name}</span>
+          </div>
         </div>
-        <div class="glass-card p-3 font-mono">
-          <span style="font-size:11px; color:#94a3b8;">HOTEL MATCHES</span>
-          <h3 style="font-size:20px; color:#ec4899;" class="mt-1">${(trip.hotels || []).length} Options</h3>
+        <div class="summary-mini-card">
+          <div class="smc-icon" style="background:rgba(168,85,247,0.15); color:#a855f7;"><i class="fa-solid fa-calendar-days"></i></div>
+          <div class="smc-body">
+            <span class="smc-label">Duration</span>
+            <span class="smc-value">${trip.days} Days / ${trip.days - 1} Nights</span>
+          </div>
         </div>
-        <div class="glass-card p-3 font-mono">
-          <span style="font-size:11px; color:#94a3b8;">FORECAST TEMPERATURE</span>
-          <h3 style="font-size:20px; color:#fbbf24;" class="mt-1">${(trip.weatherData?.current?.temperature) || '22°C'}</h3>
+        <div class="summary-mini-card">
+          <div class="smc-icon" style="background:rgba(16,185,129,0.15); color:#10b981;"><i class="fa-solid fa-users"></i></div>
+          <div class="smc-body">
+            <span class="smc-label">Travelers</span>
+            <span class="smc-value">${trip.travelers} Guests (${trip.travelStyle || 'Standard'})</span>
+          </div>
         </div>
-        <div class="glass-card p-3 font-mono">
-          <span style="font-size:11px; color:#94a3b8;">TRANSIT DURATION</span>
-          <h3 style="font-size:20px; color:#10b981;" class="mt-1">${(trip.transportData?.estimated_duration) || '8h 30m'}</h3>
+        <div class="summary-mini-card">
+          <div class="smc-icon" style="background:rgba(245,158,11,0.15); color:#f59e0b;"><i class="fa-solid fa-wallet"></i></div>
+          <div class="smc-body">
+            <span class="smc-label">Total Budget</span>
+            <span class="smc-value">₹ ${Number(trip.budget).toLocaleString()}</span>
+          </div>
+        </div>
+        <div class="summary-mini-card">
+          <div class="smc-icon" style="background:rgba(56,189,248,0.15); color:#38bdf8;"><i class="fa-solid fa-cloud-sun"></i></div>
+          <div class="smc-body">
+            <span class="smc-label">Weather</span>
+            <span class="smc-value">${trip.weatherData?.current?.condition || 'Pleasant'}, ${trip.weatherData?.current?.temp_c || 24}°C</span>
+          </div>
+        </div>
+        <div class="summary-mini-card">
+          <div class="smc-icon" style="background:rgba(236,72,153,0.15); color:#ec4899;"><i class="fa-solid fa-hotel"></i></div>
+          <div class="smc-body">
+            <span class="smc-label">Accommodation</span>
+            <span class="smc-value" title="${topHotel}">${topHotel}</span>
+          </div>
+        </div>
+        <div class="summary-mini-card">
+          <div class="smc-icon" style="background:rgba(99,102,241,0.15); color:#6366f1;"><i class="fa-solid fa-plane"></i></div>
+          <div class="smc-body">
+            <span class="smc-label">Transport</span>
+            <span class="smc-value">${mainTransport}</span>
+          </div>
+        </div>
+        <div class="summary-mini-card">
+          <div class="smc-icon" style="background:rgba(14,165,233,0.15); color:#0ea5e9;"><i class="fa-solid fa-icons"></i></div>
+          <div class="smc-body">
+            <span class="smc-label">Interests</span>
+            <span class="smc-value">${(trip.interests || ['Sightseeing']).slice(0, 2).join(', ')}</span>
+          </div>
         </div>
       `;
     }
 
+    // SECTION 3: DESTINATION HIGHLIGHTS (CAROUSEL)
     const carousel = document.getElementById('overviewAttractionsCarousel');
-    if (carousel) {
-      carousel.innerHTML = (trip.attractions || []).slice(0, 6).map(spot => `
-        <div class="attraction-card-carousel">
-          <img src="${resolvePhotoSrc(spot.photo_url)}" class="attraction-img-thumb" alt="${spot.name}">
-          <div class="attraction-meta-body">
-            <h4 style="font-size:14px; font-weight:800; color:#fff;">${spot.name}</h4>
-            <div style="font-size:11px; color:#fbbf24;">${spot.rating || 4.6} ★ (${spot.user_ratings_total || 250} reviews)</div>
+    if (carousel && trip.attractions) {
+      carousel.innerHTML = trip.attractions.map(attr => `
+        <div class="attraction-carousel-card">
+          <div class="acc-img-wrap">
+            <img class="acc-img" src="${resolvePhotoSrc(attr.photo_url)}" alt="${attr.name}" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1596178065887-1198b6148b2b?auto=format&fit=crop&w=600&q=80';">
+            <span class="acc-rating-pill">⭐ ${attr.rating ? attr.rating.toFixed(1) : '4.8'}</span>
+          </div>
+          <div class="acc-body">
+            <h4 class="acc-title">${attr.name}</h4>
+            <span class="acc-addr"><i class="fa-solid fa-location-dot text-cyan"></i> ${attr.address || trip.name}</span>
+            <a href="${attr.googleMapsUri || 'https://maps.google.com/?q=' + encodeURIComponent(attr.name + ' ' + trip.name)}" target="_blank" class="btn btn-sm btn-glass text-cyan mt-auto text-decoration-none text-center">
+              <i class="fa-solid fa-map-pin me-1"></i> View on Map
+            </a>
           </div>
         </div>
       `).join('');
     }
 
-    const itinContainer = document.getElementById('overviewDayItineraryContainer');
-    if (itinContainer) {
-      itinContainer.innerHTML = (trip.itinerary || []).map(dayPlan => `
-        <div class="glass-card p-3 mb-3" style="background: rgba(255,255,255,0.02);">
-          <h4 style="font-size: 16px; font-weight: 800; color: var(--color-primary);" class="mb-2">Day ${dayPlan.day} - ${dayPlan.destination || trip.name}</h4>
-          <div class="timeline-container">
-            ${(dayPlan.places || []).map(p => `
-              <div class="timeline-item">
-                <span class="timeline-time">${p.time || '10:00 AM'}</span>
-                <h5 class="timeline-title">${p.name}</h5>
-                <p style="font-size:12px; color:#cbd5e1; margin-top:2px;">${p.description || 'Authentic landmark and scenic spot.'}</p>
+    // SECTION 4: DAY WISE ITINERARY Timeline
+    const dayItinContainer = document.getElementById('overviewDayItineraryContainer');
+    if (dayItinContainer && trip.itinerary) {
+      dayItinContainer.innerHTML = trip.itinerary.map(dayPlan => `
+        <div class="day-card-accordion">
+          <div class="day-card-header">
+            <h4 class="day-card-title"><i class="fa-solid fa-calendar-check text-purple"></i> Day ${dayPlan.day}: ${dayPlan.title || 'Exploration & Sightseeing'}</h4>
+            <span class="badge-sub">${dayPlan.slots ? dayPlan.slots.length : 3} Activities</span>
+          </div>
+          <div class="day-slots-grid">
+            ${(dayPlan.slots || []).map(slot => `
+              <div class="slot-item">
+                <span class="slot-period-tag" style="background:rgba(56,189,248,0.15); color:#38bdf8;">${slot.period || 'Morning'} (${slot.time || '9:00 AM'})</span>
+                <h5 style="font-size:14px; font-weight:700; color:#fff; margin:4px 0;">${slot.spot_name}</h5>
+                <p style="font-size:12px; color:#94a3b8; margin:0 0 8px 0;">${slot.activity}</p>
+                <div style="font-size:11px; color:#64748b; display:flex; justify-content:space-between;">
+                  <span><i class="fa-regular fa-clock me-1"></i>${slot.duration || '2 hrs'}</span>
+                  <span><i class="fa-solid fa-utensils me-1 text-amber"></i>${slot.meal_recommendation || 'Local Cuisine'}</span>
+                </div>
               </div>
             `).join('')}
           </div>
         </div>
-      `).map((item, idx) => idx < 3 ? item : '').join('');
+      `).join('');
+    }
+
+    // SECTION 5: BUDGET BREAKDOWN
+    const budgetContainer = document.getElementById('overviewBudgetBreakdownContainer');
+    const totalTag = document.getElementById('ovBudgetTotalTag');
+    if (totalTag) totalTag.innerText = `₹ ${Number(trip.budget).toLocaleString()} INR`;
+    if (budgetContainer) {
+      const hotelCost = trip.costSummary?.hotel || Math.round(trip.budget * 0.40);
+      const transportCost = trip.costSummary?.transport || Math.round(trip.budget * 0.25);
+      const foodCost = trip.costSummary?.food || Math.round(trip.budget * 0.20);
+      const ticketsCost = trip.costSummary?.tickets || Math.round(trip.budget * 0.15);
+
+      budgetContainer.innerHTML = `
+        <div class="budget-progress-row">
+          <div class="bpr-header">
+            <span><i class="fa-solid fa-hotel me-2 text-rose"></i>Accommodation (40%)</span>
+            <span>₹ ${hotelCost.toLocaleString()}</span>
+          </div>
+          <div class="bpr-track"><div class="bpr-fill" style="width:40%; background:linear-gradient(90deg,#f43f5e,#fb7185);"></div></div>
+        </div>
+        <div class="budget-progress-row">
+          <div class="bpr-header">
+            <span><i class="fa-solid fa-plane me-2 text-cyan"></i>Transport & Transit (25%)</span>
+            <span>₹ ${transportCost.toLocaleString()}</span>
+          </div>
+          <div class="bpr-track"><div class="bpr-fill" style="width:25%; background:linear-gradient(90deg,#06b6d4,#38bdf8);"></div></div>
+        </div>
+        <div class="budget-progress-row">
+          <div class="bpr-header">
+            <span><i class="fa-solid fa-utensils me-2 text-amber"></i>Food & Dining (20%)</span>
+            <span>₹ ${foodCost.toLocaleString()}</span>
+          </div>
+          <div class="bpr-track"><div class="bpr-fill" style="width:20%; background:linear-gradient(90deg,#f59e0b,#fbbf24);"></div></div>
+        </div>
+        <div class="budget-progress-row">
+          <div class="bpr-header">
+            <span><i class="fa-solid fa-ticket me-2 text-emerald"></i>Activities & Sightseeing (15%)</span>
+            <span>₹ ${ticketsCost.toLocaleString()}</span>
+          </div>
+          <div class="bpr-track"><div class="bpr-fill" style="width:15%; background:linear-gradient(90deg,#10b981,#34d399);"></div></div>
+        </div>
+      `;
+    }
+
+    // SECTION 6: ACCOMMODATION STAYS
+    const hotelContainer = document.getElementById('overviewAccommodationContainer');
+    if (hotelContainer && trip.hotels) {
+      hotelContainer.innerHTML = trip.hotels.slice(0, 3).map(h => `
+        <div class="mini-item-card">
+          <img class="mic-img" src="${h.photo_url || 'https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=400&q=80'}" alt="${h.name}">
+          <div style="flex:1;">
+            <div class="mic-title">${h.name}</div>
+            <div class="mic-sub"><i class="fa-solid fa-star text-warning me-1"></i>${h.rating || '4.5'} • ₹ ${(h.price_per_night || 4500).toLocaleString()}/night</div>
+          </div>
+          <a href="${h.googleMapsUri || 'https://maps.google.com/?q=' + encodeURIComponent(h.name + ' ' + trip.name)}" target="_blank" class="btn btn-sm btn-glass text-cyan text-decoration-none">
+            <i class="fa-solid fa-map-location-dot me-1"></i> Maps
+          </a>
+        </div>
+      `).join('');
+    }
+
+    // SECTION 7: TRANSPORT OPTIONS
+    const transportContainer = document.getElementById('overviewTransportContainer');
+    if (transportContainer) {
+      const opts = trip.transportData?.options || [
+        { mode: 'Flight + Cab', duration: '3h 15m', cost: 6500, details: 'Direct Flight + Airport Taxi' },
+        { mode: 'Express Train', duration: '7h 45m', cost: 1800, details: 'Superfast Express AC Chair Car' }
+      ];
+      transportContainer.innerHTML = opts.map(t => `
+        <div class="mini-item-card">
+          <div style="width:48px; height:48px; border-radius:10px; background:rgba(99,102,241,0.15); color:#6366f1; display:flex; align-items:center; justify-content:center; font-size:20px; flex-shrink:0;">
+            <i class="fa-solid ${t.mode.includes('Flight') ? 'fa-plane' : 'fa-train'}"></i>
+          </div>
+          <div style="flex:1;">
+            <div class="mic-title">${t.mode}</div>
+            <div class="mic-sub">${t.details || 'Optimal Route'} • Duration: ${t.duration || '4 hours'}</div>
+          </div>
+          <span style="font-weight:800; color:#10b981; font-size:14px;">₹ ${(t.cost || 3500).toLocaleString()}</span>
+        </div>
+      `).join('');
+    }
+
+    // SECTION 8: WEATHER FORECAST
+    const weatherContainer = document.getElementById('overviewWeatherForecastContainer');
+    if (weatherContainer) {
+      const forecast = trip.weatherData?.forecast || [
+        { day: 'Day 1', condition: 'Sunny', temp: '26°C' },
+        { day: 'Day 2', condition: 'Pleasant', temp: '24°C' },
+        { day: 'Day 3', condition: 'Clear', temp: '25°C' }
+      ];
+      weatherContainer.innerHTML = forecast.map(f => `
+        <div class="wf-day-card">
+          <span style="font-size:11px; font-weight:700; color:#94a3b8;">${f.day}</span>
+          <div style="font-size:24px; color:#38bdf8; margin:6px 0;"><i class="fa-solid fa-cloud-sun"></i></div>
+          <div style="font-size:14px; font-weight:800; color:#fff;">${f.temp || f.temp_max + '°C'}</div>
+          <div style="font-size:11px; color:#cbd5e1;">${f.condition}</div>
+        </div>
+      `).join('');
+    }
+
+    // SECTION 9: LOCAL RECOMMENDATIONS
+    const localContainer = document.getElementById('overviewLocalRecsContainer');
+    if (localContainer) {
+      localContainer.innerHTML = `
+        <div class="local-rec-card">
+          <h5 style="font-size:14px; font-weight:700; color:#38bdf8; margin-bottom:8px;"><i class="fa-solid fa-utensils me-2"></i>Must-Try Local Cuisine</h5>
+          <p style="font-size:12.5px; color:#cbd5e1; margin:0; line-height:1.5;">Authentic regional thali, freshly caught seafood delicacies, traditional tea plantations, and artisanal sweets.</p>
+        </div>
+        <div class="local-rec-card">
+          <h5 style="font-size:14px; font-weight:700; color:#a855f7; margin-bottom:8px;"><i class="fa-solid fa-bag-shopping me-2"></i>Shopping &amp; Souvenirs</h5>
+          <p style="font-size:12.5px; color:#cbd5e1; margin:0; line-height:1.5;">Local spice markets, handmade wooden crafts, organic tea leaves, and traditional silk weaves.</p>
+        </div>
+        <div class="local-rec-card">
+          <h5 style="font-size:14px; font-weight:700; color:#10b981; margin-bottom:8px;"><i class="fa-solid fa-shield-halved me-2"></i>Safety &amp; Travel Tips</h5>
+          <p style="font-size:12.5px; color:#cbd5e1; margin:0; line-height:1.5;">Keep digital copies of IDs handy, carry light cotton clothing, use authorized tourist taxis, and stay hydrated.</p>
+        </div>
+      `;
+    }
+
+    // SECTION 10: Action Maps Link
+    const openMapsBtn = document.getElementById('ovOpenMapsBtn');
+    if (openMapsBtn) {
+      openMapsBtn.href = `https://www.google.com/maps/search/${encodeURIComponent(trip.name + ' tourist attractions')}`;
     }
   }
 
-  // Global Export Helpers
-  window.exportCalendarICS = () => {
+  window.downloadTripJSON = function() {
     const trip = currentState.activeTrip;
     if (!trip) return;
-    const content = `BEGIN:VCALENDAR\nVERSION:2.0\nSUMMARY:Trip to ${trip.name}\nDESCRIPTION:${trip.days} Days AI Travel Plan\nEND:VCALENDAR`;
-    const blob = new Blob([content], { type: 'text/calendar' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `Trip_${trip.name}.ics`;
-    a.click();
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(trip, null, 2));
+    const downloadAnchor = document.createElement('a');
+    downloadAnchor.setAttribute("href", dataStr);
+    downloadAnchor.setAttribute("download", `${trip.name}_Trip_Itinerary.json`);
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    downloadAnchor.remove();
   };
 
-  window.downloadTripJSON = () => {
+  window.shareTripPlan = function() {
     const trip = currentState.activeTrip;
     if (!trip) return;
-    const blob = new Blob([JSON.stringify(trip, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `AI_Travel_Plan_${trip.name}.json`;
-    a.click();
-  };
-
-  window.shareTripPlan = () => {
-    if (navigator.clipboard) {
+    if (navigator.share) {
+      navigator.share({
+        title: `Trip to ${trip.name}`,
+        text: `Check out my ${trip.days}-day AI generated trip to ${trip.name}!`,
+        url: window.location.href,
+      }).catch(() => {});
+    } else {
       navigator.clipboard.writeText(window.location.href);
-      alert('Trip plan URL copied to clipboard!');
+      alert('Trip itinerary link copied to clipboard!');
     }
   };
 
-  // Initial Load Trigger
-  if (currentState.activeView === 'dashboard') {
-    renderDashboard();
+  function renderHistoryGrid() {
+    const container = document.getElementById('historyGridContainer');
+    if (!container) return;
+    if (currentState.savedTrips.length === 0) { renderEmptyState(container, 'History'); }
+    else {
+      container.innerHTML = currentState.savedTrips.map(t => `
+        <div class="glass-card p-3 mb-2">
+          <h4>${t.name}, ${t.country}</h4>
+          <div>${t.days} Days • ₹${t.budget.toLocaleString()} • ${t.datePlanned}</div>
+        </div>
+      `).join('');
+    }
   }
 
+  loadBackendState().then(() => {
+    switchView('dashboard');
+  });
 });

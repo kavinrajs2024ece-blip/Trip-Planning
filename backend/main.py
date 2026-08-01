@@ -17,6 +17,7 @@ from routes.accommodation_routes import router as accommodation_router
 from routes.weather_routes import router as weather_router
 from routes.transport_routes import router as transport_router
 from routes.budget_routes import router as budget_router
+from routes.dashboard_routes import router as dashboard_router
 
 app = FastAPI(
     title="Travel Planning AI Backend",
@@ -40,6 +41,7 @@ app.include_router(accommodation_router)
 app.include_router(weather_router)
 app.include_router(transport_router)
 app.include_router(budget_router)
+app.include_router(dashboard_router)
 
 @app.get("/")
 def read_root():

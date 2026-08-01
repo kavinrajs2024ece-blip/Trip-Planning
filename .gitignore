@@ -8,3 +8,5 @@ env/
 .vscode/
 .idea/
 .DS_Store
+trips_store.json
+backend/trips_store.json

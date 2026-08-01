@@ -18,11 +18,12 @@ document.addEventListener('DOMContentLoaded', () => {
   let currentState = {
     activeView: 'dashboard',
     theme: 'dark',
-    activeTrip: JSON.parse(localStorage.getItem('aether_active_trip') || 'null'),
-    savedTrips: JSON.parse(localStorage.getItem('aether_saved_trips') || '[]'),
-    favoriteHotels: JSON.parse(localStorage.getItem('aether_favorite_hotels') || '[]'),
-    activityLogs: JSON.parse(localStorage.getItem('aether_activity_logs') || '[]'),
+    activeTrip: null,
+    savedTrips: [],
+    favoriteHotels: [],
+    activityLogs: [],
     compareList: [],
+    dashboardData: null,
     leafletMapInstance: null,
     transportMapInstance: null
   };
@@ -31,8 +32,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const defaultFallback = fallbackUrl || 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=1200&auto=format&fit=crop&q=80';
     if (!url) return defaultFallback;
     if (url.startsWith('http://') || url.startsWith('https://')) return url;
-    if (url.startsWith('/')) return `http://127.0.0.1:8000${url}`;
-    return `http://127.0.0.1:8000/${url}`;
+    const origin = (window.location.port === '3000' || window.location.port === '5500') ? 'http://127.0.0.1:8000' : window.location.origin;
+    if (url.startsWith('/')) return `${origin}${url}`;
+    return `${origin}/${url}`;
   }
 
   /* ==========================================================================
@@ -46,7 +48,22 @@ document.addEventListener('DOMContentLoaded', () => {
   const navItems = document.querySelectorAll('.nav-item');
   const appViews = document.querySelectorAll('.app-view');
 
-  function switchView(viewId) {
+  async function loadBackendState() {
+    try {
+      const data = await fetchGETAPI('/api/dashboard');
+      if (data && data.status === 'success') {
+        currentState.dashboardData = data;
+        currentState.activeTrip = data.active_trip || null;
+        currentState.savedTrips = data.recent_trips || [];
+        currentState.favoriteHotels = data.favorite_hotels || [];
+        currentState.activityLogs = data.activity_logs || [];
+      }
+    } catch (e) {
+      console.warn("Backend data load fallback:", e);
+    }
+  }
+
+  async function switchView(viewId) {
     currentState.activeView = viewId;
     
     navItems.forEach(item => {
@@ -68,20 +85,28 @@ document.addEventListener('DOMContentLoaded', () => {
     sidebar?.classList.remove('mobile-open');
 
     if (viewId === 'dashboard') {
+      await loadBackendState();
       renderDashboard();
     } else if (viewId === 'agent-destination') {
+      if (!currentState.activeTrip) await loadBackendState();
       renderDestinationAgentPage();
     } else if (viewId === 'agent-accommodation') {
+      if (!currentState.activeTrip) await loadBackendState();
       renderAccommodationAgentPage();
     } else if (viewId === 'agent-weather') {
+      if (!currentState.activeTrip) await loadBackendState();
       renderWeatherAgentPage();
     } else if (viewId === 'agent-transport') {
+      if (!currentState.activeTrip) await loadBackendState();
       renderTransportAgentPage();
     } else if (viewId === 'agent-itinerary') {
+      if (!currentState.activeTrip) await loadBackendState();
       renderItineraryAgentPage();
     } else if (viewId === 'agent-budget') {
+      if (!currentState.activeTrip) await loadBackendState();
       renderBudgetAgentPage();
     } else if (viewId === 'controller') {
+      if (!currentState.activeTrip) await loadBackendState();
       if (!currentState.activeTrip || !currentState.activeTrip.itinerary || currentState.activeTrip.itinerary.length === 0) {
         console.warn('Trip Overview blocked: No completed trip plan found. Redirecting to New Trip Plan.');
         switchView('new-plan');
@@ -89,6 +114,10 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       renderTripOverviewPage();
     } else if (viewId === 'history') {
+      try {
+        const trips = await fetchGETAPI('/api/trip/list');
+        if (trips && Array.isArray(trips)) currentState.savedTrips = trips;
+      } catch (e) {}
       renderHistoryGrid();
     }
 
@@ -282,8 +311,23 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  async function fetchGETAPI(endpoint) {
+    const apiHosts = (window.location.port === '3000' || window.location.port === '5500')
+      ? ['http://127.0.0.1:8000', 'http://localhost:8000', '']
+      : ['', window.location.origin];
+    for (const host of apiHosts) {
+      try {
+        const resp = await fetch(`${host}${endpoint}`);
+        if (resp.ok) return await resp.json();
+      } catch (e) {}
+    }
+    throw new Error(`Failed to fetch GET ${endpoint}`);
+  }
+
   async function fetchAPI(endpoint, bodyData) {
-    const apiHosts = ['http://127.0.0.1:8000', 'http://localhost:8000', ''];
+    const apiHosts = (window.location.port === '3000' || window.location.port === '5500')
+      ? ['http://127.0.0.1:8000', 'http://localhost:8000', '']
+      : ['', window.location.origin];
     for (const host of apiHosts) {
       try {
         const resp = await fetch(`${host}${endpoint}`, {
@@ -292,9 +336,7 @@ document.addEventListener('DOMContentLoaded', () => {
           body: JSON.stringify(bodyData)
         });
         if (resp.ok) return await resp.json();
-      } catch (e) {
-        // try next host
-      }
+      } catch (e) {}
     }
     throw new Error(`Failed to reach ${endpoint}`);
   }
@@ -312,7 +354,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (msg) {
       currentState.activityLogs.unshift(`[${timeStr}] ${msg}`);
       if (currentState.activityLogs.length > 25) currentState.activityLogs.pop();
-      localStorage.setItem('aether_activity_logs', JSON.stringify(currentState.activityLogs));
     }
   }
 
@@ -582,7 +623,6 @@ document.addEventListener('DOMContentLoaded', () => {
           currentState.favoriteHotels.push(id);
           btn.classList.add('active');
         }
-        localStorage.setItem('aether_favorite_hotels', JSON.stringify(currentState.favoriteHotels));
       });
     });
 
@@ -858,12 +898,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const tripsCompletedEl = document.getElementById('dashTripsCompleted');
     const activeTripBanner = document.getElementById('dashActiveTripBanner');
 
-    const totalTripsCount = currentState.savedTrips.length;
+    const dash = currentState.dashboardData;
+    const savedTrips = dash ? dash.recent_trips : currentState.savedTrips;
+    const totalTripsCount = dash ? dash.total_trips_planned : savedTrips.length;
     if (totalTripsEl) totalTripsEl.innerText = totalTripsCount;
     if (tripsCompletedEl) tripsCompletedEl.innerText = totalTripsCount;
 
     const trip = currentState.activeTrip;
-    if (totalBudgetEl) totalBudgetEl.innerText = trip ? `₹${trip.budget.toLocaleString()}` : '₹0';
+    const totalAllocatedBudget = dash ? dash.total_budget_allocated : (trip ? trip.budget : 0);
+    if (totalBudgetEl) totalBudgetEl.innerText = `₹${Number(totalAllocatedBudget).toLocaleString()}`;
 
     if (activeTripBanner) {
       if (trip) {
@@ -1428,9 +1471,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function saveActiveTripState() {
-    if (currentState.activeTrip) {
-      localStorage.setItem('aether_active_trip', JSON.stringify(currentState.activeTrip));
-    }
+    // No-op: Backend is single source of truth
   }
 
   function initBudgetCharts(categories) {
@@ -1810,10 +1851,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
       currentState.activeTrip = newTrip;
       currentState.savedTrips.unshift(newTrip);
-      localStorage.setItem('aether_active_trip', JSON.stringify(newTrip));
-      localStorage.setItem('aether_saved_trips', JSON.stringify(currentState.savedTrips));
 
-      // Automatically navigate to Trip Overview ONLY after every agent has completed
+      // Save trip object to backend single source of truth
+      try {
+        const savedRes = await fetchAPI('/api/trip/save', newTrip);
+        if (savedRes && savedRes.id) {
+          currentState.activeTrip = savedRes;
+        }
+      } catch (e) {
+        console.warn("Backend trip save fallback:", e);
+      }
+
+      await loadBackendState();
       await new Promise(r => setTimeout(r, 650));
       switchView('controller');
       renderTripOverviewPage();
@@ -1832,18 +1881,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function renderTripOverviewPage() {
     let trip = currentState.activeTrip;
-    if (!trip) {
-      const saved = localStorage.getItem('aether_active_trip');
-      if (saved) {
-        try {
-          trip = JSON.parse(saved);
-          currentState.activeTrip = trip;
-        } catch (e) {
-          console.error("Error parsing saved trip:", e);
-        }
-      }
-    }
-
     if (!trip) return;
 
     // SECTION 1: HERO BANNER
@@ -2148,5 +2185,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  switchView('dashboard');
+  loadBackendState().then(() => {
+    switchView('dashboard');
+  });
 });
